@@ -1,37 +1,134 @@
 #!/usr/bin/perl
 
-use Net::Jabber qw(Client);
+# najabo - Nagios Jabber Bot
+#
+# Authors:
+#   Thomas Liske <thomas@fiasko-nw.net>
+#
+# Copyright Holder:
+#   2011 (C) Thomas Liske <thomas@fiasko-nw.net>
+#
+# License:
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this package; if not, write to the Free Software
+#   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+#
+
+use File::Basename;
+use Getopt::Std;
+use Linux::Inotify2;
+use Net::XMPP;
+use Nagios::StatusLog;
+
 use strict;
 use warnings;
 
-my $conn = undef;
+our $opt_c = '/etc/najabo/najabo.conf';
+getopt('c:');
+die "Could not read config file '$opt_c'.\n" unless(-r $opt_c);
 
-# global stuff
-$conn->{__iqname} = "NaJaBo";
-$conn->{__iqversion} = '0.1';
-$conn->{__iqos} = `uname -o`;
-$conn->{__vcard} = "conf/$bot/vcard";
+my %xmpp_conf;
+my %auth_conf;
+my %nagios_conf;
+my %conf;
+eval `cat "$opt_c"`;
 
-# register callbacks
-$conn->SetCallBacks(message=>\&InMessage, iq=>\&InIQ);
+my $conn;
 
-my $last = 0;
-while(defined($self->Process(5))) {
-    # check status
+# setup inotify
+my $inotify = new Linux::Inotify2 or die "Unable to create new inotify object: $!\n";
+$inotify->blocking(0);
+
+# add inotify watch
+my $watch = $inotify->watch(dirname($nagios_conf{'Filename'}), IN_MOVED_TO, sub {
+    my $e = shift;
+    ParseStatus() if($e->IN_MOVED_TO && ($e->fullname eq $nagios_conf{'Filename'}));
+}) or die "Could not setup inotify watch: $!\n";
+
+while(1) {
+    $conn = new Net::XMPP::Client;
+
+    # global stuff
+    $conn->{__iqname} = "NaJaBo";
+    $conn->{__iqversion} = '0.1';
+    $conn->{__iqos} = `uname -o`;
+    #$conn->{__vcard} = "conf/$bot/vcard";
+
+    # register callbacks
+    $conn->SetCallBacks(message=>\&InMessage, iq=>\&InIQ);
+
+    # try to connect
+    unless($conn->Connect(%xmpp_conf)) {
+        warn "Could not connect to XMPP server: $!\n";
+        sleep(30);
+        next;
+    }
+
+    # try to auth
+    unless(my @result = $conn->AuthSend(%auth_conf)) {
+        warn "Authorization failed: $result[0] - $result[1]!\n";
+        sleep(60);
+        next;
+    }
+
+    $conn->PresenceSend();
+    SetVCard();
+
+    # wait for XMPP messages and nagios status updates
+    while(defined($conn->Process(5))) {
+	$inotify->poll;
+    }
+
+    warn "Connection broken, trying to reconnect...\n";
+    sleep(30);
 }
 
+sub SetVCard() {
+#    if (-r $conn->{__vcard}) {
+#        open(FILEREAD, '< '.$conn->{__vcard});
+#        my $IQ = new Net::XMPP::IQ();
+#        $IQ->SetIQ(type => 'set');
+#        $IQ->InsertRawXML(<FILEREAD>);
+#        $conn->Send($IQ);
+#        close(FILEREAD);
+#    }
+}
 
-sub set_vcard() {
-    my $conn = shift;
-
-    if (-r $conn->{__vcard}) {
-        open(FILEREAD, '< '.$conn->{__vcard});
-        my $IQ = new Net::Jabber::IQ();
-        $IQ->SetIQ(type => 'set');
-        $IQ->InsertRawXML(<FILEREAD>);
-        $conn->Send($IQ);
-        close(FILEREAD);
+sub ParseStatus {
+    my $log = Nagios::StatusLog->new(%nagios_conf);
+    my %states;
+    foreach my $host ($log->list_hosts) {
+	my $obj = $log->host($host);
+	push(@{$states{$obj->status}}, $obj->host_name);
     }
+
+    my @states;
+    my @details;
+    foreach my $status (keys %states) {
+	push(@states, ($#{$states{$status}} + 1).' '.$status);
+	push(@details, $status) if($status ne 'OK');
+    }
+
+    my $status = join(', ', @states);
+    $status .= "\n" unless($#details == -1);
+    foreach my $detail (@details) {
+	$status .= "\n$detail: ".join(', ', sort @{$states{$detail}});
+    }
+
+    $conn->PresenceSend(
+	status => $status,
+	show => 'busy',
+    );
 }
 
 # we've got a message
@@ -66,29 +163,29 @@ sub InIQ {
         my $xmlns = $query->GetXMLNS();
 
         if ($xmlns eq 'jabber:iq:version') {
-            my $IQ = new Net::Jabber::IQ();
+            my $IQ = new Net::XMPP::IQ();
             $IQ->SetIQ(to => $from, from => $to, id => $id, type => 'result');
             $IQ->InsertRawXML("<query xmlns='jabber:iq:version'><name>$conn->{__iqname}</name><version>$conn->{__iqversion}</version><os>$conn->{__iqos}</os></query>");
             $conn->Send($IQ);
         }
         elsif ($xmlns eq 'jabber:iq:last') {
-            my $IQ = new Net::Jabber::IQ();
+            my $IQ = new Net::XMPP::IQ();
             $IQ->SetIQ(to => $from, from => $to, id => $id, type => 'result');
             $IQ->InsertRawXML("<query xmlns='jabber:iq:last'/>");
             $conn->Send($IQ);
         }
         elsif ($xmlns eq 'vcard-temp') {
-            if (-r $conn->{__vcard}) {
-                open(FILEREAD, '< '.$conn->{__vcard});
-                my $IQ = new Net::Jabber::IQ();
-                $IQ->SetIQ( to => $from,
-                            from => $to,
-                            id => $id,
-                            type => 'result');
-                $IQ->InsertRawXML(<FILEREAD>);
-                $conn->Send($IQ);
-                close(FILEREAD);
-            }
+#            if (-r $conn->{__vcard}) {
+#                open(FILEREAD, '< '.$conn->{__vcard});
+#                my $IQ = new Net::XMPP::IQ();
+#                $IQ->SetIQ( to => $from,
+#                            from => $to,
+#                            id => $id,
+#                            type => 'result');
+#                $IQ->InsertRawXML(<FILEREAD>);
+#                $conn->Send($IQ);
+#                close(FILEREAD);
+#            }
         }
         elsif ($xmlns eq 'http://jabber.org/protocol/disco#info') {
             my $reply = $iq->Reply(type=>'result');
