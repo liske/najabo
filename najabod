@@ -1,2 +1,102 @@
 #!/usr/bin/perl
 
+use Net::Jabber qw(Client);
+use strict;
+use warnings;
+
+my $conn = undef;
+
+# global stuff
+$conn->{__iqname} = "NaJaBo";
+$conn->{__iqversion} = '0.1';
+$conn->{__iqos} = `uname -o`;
+$conn->{__vcard} = "conf/$bot/vcard";
+
+# register callbacks
+$conn->SetCallBacks(message=>\&InMessage, iq=>\&InIQ);
+
+my $last = 0;
+while(defined($self->Process(5))) {
+    # check status
+}
+
+
+sub set_vcard() {
+    my $conn = shift;
+
+    if (-r $conn->{__vcard}) {
+        open(FILEREAD, '< '.$conn->{__vcard});
+        my $IQ = new Net::Jabber::IQ();
+        $IQ->SetIQ(type => 'set');
+        $IQ->InsertRawXML(<FILEREAD>);
+        $conn->Send($IQ);
+        close(FILEREAD);
+    }
+}
+
+# we've got a message
+sub InMessage {
+#    my $sid = shift;
+#    my $message = shift;
+#    my $to = $message->GetFrom();
+#
+#    if ($to =~ /\@/) {
+#        if (my $m = $message->GetBody()) {
+#            my $response = $eliza->transform($m);
+#
+#            sleep 0.5+rand;
+#
+#            $conn->Send($message->Reply(body=>$response));
+#        }
+#    }
+}
+
+# somebody query's an IQ
+sub InIQ {
+    my $sid = shift;
+    my $iq = shift;
+
+    my $from = $iq->GetFrom();
+    my $to = $iq->GetTo();
+    my $id = $iq->GetID();
+    my $type = $iq->GetType();
+    my $query = $iq->GetQuery();
+
+    if($type eq 'get') {
+        my $xmlns = $query->GetXMLNS();
+
+        if ($xmlns eq 'jabber:iq:version') {
+            my $IQ = new Net::Jabber::IQ();
+            $IQ->SetIQ(to => $from, from => $to, id => $id, type => 'result');
+            $IQ->InsertRawXML("<query xmlns='jabber:iq:version'><name>$conn->{__iqname}</name><version>$conn->{__iqversion}</version><os>$conn->{__iqos}</os></query>");
+            $conn->Send($IQ);
+        }
+        elsif ($xmlns eq 'jabber:iq:last') {
+            my $IQ = new Net::Jabber::IQ();
+            $IQ->SetIQ(to => $from, from => $to, id => $id, type => 'result');
+            $IQ->InsertRawXML("<query xmlns='jabber:iq:last'/>");
+            $conn->Send($IQ);
+        }
+        elsif ($xmlns eq 'vcard-temp') {
+            if (-r $conn->{__vcard}) {
+                open(FILEREAD, '< '.$conn->{__vcard});
+                my $IQ = new Net::Jabber::IQ();
+                $IQ->SetIQ( to => $from,
+                            from => $to,
+                            id => $id,
+                            type => 'result');
+                $IQ->InsertRawXML(<FILEREAD>);
+                $conn->Send($IQ);
+                close(FILEREAD);
+            }
+        }
+        elsif ($xmlns eq 'http://jabber.org/protocol/disco#info') {
+            my $reply = $iq->Reply(type=>'result');
+            my $query = $reply->NewQuery("http://jabber.org/protocol/disco#info");
+            $conn->Send($reply->GetXML());
+        }
+        else {
+            print STDERR "WARNING: Unhandled IQ: $xmlns\n";
+        }
+    }
+}
