@@ -33,6 +33,10 @@ use Nagios::StatusLog;
 use strict;
 use warnings;
 
+use constant {
+    XML_IQ_VERSION => "<query xmlns='jabber:iq:version'><name>najabo</name><version>0.1</version><os>".`uname -o`."</os></query>",
+};
+
 our $opt_c = '/etc/najabo/najabo.conf';
 getopt('c:');
 die "Could not read config file '$opt_c'.\n" unless(-r $opt_c);
@@ -44,6 +48,10 @@ my %conf;
 eval `cat "$opt_c"`;
 
 my $conn;
+my $last;
+
+# setup nagios status log stuff
+my $log = Nagios::StatusLog->new(%nagios_conf);
 
 # setup inotify
 my $inotify = new Linux::Inotify2 or die "Unable to create new inotify object: $!\n";
@@ -105,7 +113,8 @@ sub SetVCard() {
 }
 
 sub ParseStatus {
-    my $log = Nagios::StatusLog->new(%nagios_conf);
+    $log->update();
+
     my %states;
     foreach my $host ($log->list_hosts) {
 	my $obj = $log->host($host);
@@ -125,9 +134,18 @@ sub ParseStatus {
 	$status .= "\n$detail: ".join(', ', sort @{$states{$detail}});
     }
 
+    # map nagios status
+    my $show = 'online';
+    if(exists($states{'DOWN'}) || exists($states{'CRITICAL'})) {
+	$show = 'xa';
+    }
+    elsif(exists($states{'WARNING'})) {
+	$show = 'away';
+    }
+
     $conn->PresenceSend(
 	status => $status,
-	show => 'busy',
+	show => $show,
     );
 }
 
@@ -165,13 +183,17 @@ sub InIQ {
         if ($xmlns eq 'jabber:iq:version') {
             my $IQ = new Net::XMPP::IQ();
             $IQ->SetIQ(to => $from, from => $to, id => $id, type => 'result');
-            $IQ->InsertRawXML("<query xmlns='jabber:iq:version'><name>$conn->{__iqname}</name><version>$conn->{__iqversion}</version><os>$conn->{__iqos}</os></query>");
+            $IQ->InsertRawXML(XML_IQ_VERSION);
             $conn->Send($IQ);
         }
         elsif ($xmlns eq 'jabber:iq:last') {
             my $IQ = new Net::XMPP::IQ();
             $IQ->SetIQ(to => $from, from => $to, id => $id, type => 'result');
-            $IQ->InsertRawXML("<query xmlns='jabber:iq:last'/>");
+            my $seconds = '';
+            if(defined(my $i = $log->info)) {
+                $seconds = "seconds='".(time()-$i->created)."'" 
+            }
+            $IQ->InsertRawXML("<query xmlns='jabber:iq:last' $seconds/>");
             $conn->Send($IQ);
         }
         elsif ($xmlns eq 'vcard-temp') {
