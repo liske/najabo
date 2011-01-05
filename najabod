@@ -117,8 +117,8 @@ while(1) {
     }
 
     # try to auth
-    unless(my @result = $conn->AuthSend(%auth_conf)) {
-        warn "Authorization failed: $result[0] - $result[1]!\n";
+    unless($conn->AuthSend(%auth_conf)) {
+        warn "Authorization failed!\n";
         sleep(60);
         next;
     }
