@@ -40,7 +40,7 @@ use constant {
 "<query xmlns='jabber:iq:version'>
     <name>najabod</name>
     <version>0.1</version>
-    <os>$Config{osname}</os>
+    <os>nagios %NAGVER%($Config{osname})</os>
 </query>",
 
     XML_IQ_NOVCARD =>
@@ -210,16 +210,26 @@ sub InIQ {
         if ($xmlns eq 'jabber:iq:version') {
             my $iq = new Net::XMPP::IQ();
             $iq->SetIQ(to => $from, from => $to, id => $id, type => 'result');
-            $iq->InsertRawXML(XML_IQ_VERSION);
+
+            my $ver = XML_IQ_VERSION;
+            my $i;
+            if(defined($i = $log->info) && defined($i->version)) {
+                $ver =~ s/%NAGVER%/${$i}{version} /;
+            }
+
+            $iq->InsertRawXML($ver);
             $conn->Send($iq);
         }
         elsif ($xmlns eq 'jabber:iq:last') {
             my $iq = new Net::XMPP::IQ();
             $iq->SetIQ(to => $from, from => $to, id => $id, type => 'result');
+
             my $seconds = '';
-            if(defined(my $i = $log->info)) {
-                $seconds = "seconds='".(time()-$i->created)."'" 
+            my $i;
+            if(defined($i = $log->info) && defined($i->created)) {
+                $seconds = "seconds='".(time() - $i->created)."'";
             }
+
             $iq->InsertRawXML("<query xmlns='jabber:iq:last' $seconds/>");
             $conn->Send($iq);
         }
