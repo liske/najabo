@@ -149,7 +149,7 @@ sub ParseStatus {
     my @details;
     foreach my $status (keys %states) {
 	push(@states, ($#{$states{$status}} + 1).' '.$status);
-	push(@details, $status) if($status ne 'OK');
+	push(@details, $status) unless(scalar grep {/^$status$/i} @{$najabo_conf{'filter_states'}});
     }
 
     my $status = join(', ', @states);
