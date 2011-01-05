@@ -28,6 +28,7 @@ use Config;
 use File::Basename;
 use Getopt::Std;
 use Linux::Inotify2;
+use POSIX qw(strftime);
 use Net::XMPP;
 use Nagios::StatusLog;
 
@@ -46,7 +47,12 @@ use constant {
 "<vCard xmlns='vcard-temp'/>",
 
     XML_IQ_DISCO =>
-"<query xmlns='http://jabber.org/protocol/disco#info'/>",
+"<query xmlns='http://jabber.org/protocol/disco#info'>
+    <feature var='jabber:iq:last'/>
+    <feature var='jabber:iq:version'/>
+    <feature var='urn:xmpp:time'/>
+    <feature var='vcard-temp'/>
+</query>",
 };
 
 our $opt_c = '/etc/najabo/najabo.conf';
@@ -211,6 +217,21 @@ sub InIQ {
                 $seconds = "seconds='".(time()-$i->created)."'" 
             }
             $iq->InsertRawXML("<query xmlns='jabber:iq:last' $seconds/>");
+            $conn->Send($iq);
+        }
+        elsif ($xmlns eq 'urn:xmpp:time') {
+            my $iq = new Net::XMPP::IQ();
+            $iq->SetIQ(to => $from, from => $to, id => $id, type => 'result');
+
+            my $tzo = strftime('%z', localtime);
+            $tzo =~ s/(.+)(..)/$1:$2/;
+            my $utc = strftime('%FT%TZ', gmtime);
+            $iq->InsertRawXML(
+"<time xmlns='urn:xmpp:time'>
+    <tzo>$tzo</tzo>
+    <utc>$utc</utc>
+</time>"
+            );
             $conn->Send($iq);
         }
         elsif ($xmlns eq 'vcard-temp') {
