@@ -10,12 +10,22 @@ najabod has the following XEPs implemented:
  XEP-0202: Entity Time
 
 
-Net::XMPP does not support SRV records
-======================================
+SRV lookup support in Net::XMPP
+===============================
 
-Net::XMPP does not support SRV records to get the XMPP server of the
+Net::XMPP did not support SRV records to get the XMPP server of the
 users JID. XMPP requires the client to lookup the server by SRV records
 in the DNS. See also the following bug reports including a fix:
 
     http://rt.cpan.org/Public/Bug/Display.html?id=18539#txn-249050
     http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=325658
+
+To get SRV lookup work, you must have at least
+
+    Net::XMPP >= 1.02_02
+    XML::Stream >= 1.23_04
+
+installed and enable the following lines in your najabo.conf:
+
+    $xmpp_conf{'componentname'} = $xmpp_conf{'hostname'};
+    $xmpp_conf{'srv'} = 1;
