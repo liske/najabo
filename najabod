@@ -216,6 +216,9 @@ sub InIQ {
             if(defined($i = $log->info) && defined($i->version)) {
                 $ver =~ s/%NAGVER%/${$i}{version} /;
             }
+            else {
+                $ver =~ s/%NAGVER%//;
+            }
 
             $iq->InsertRawXML($ver);
             $conn->Send($iq);
