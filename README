@@ -1,6 +1,21 @@
-supported XEP:
+Implemented XEPs
+================
+
+najabod has the following XEPs implemented:
+
  XEP-0012: Last Activity
  XEP-0030: Service Discovery
  XEP-0054: vcard-temp
  XEP-0092: Software Version
  XEP-0202: Entity Time
+
+
+Net::XMPP does not support SRV records
+======================================
+
+Net::XMPP does not support SRV records to get the XMPP server of the
+users JID. XMPP requires the client to lookup the server by SRV records
+in the DNS. See also the following bug reports including a fix:
+
+    http://rt.cpan.org/Public/Bug/Display.html?id=18539#txn-249050
+    http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=325658
