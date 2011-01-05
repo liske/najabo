@@ -24,6 +24,7 @@
 #   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 #
 
+use Config;
 use File::Basename;
 use Getopt::Std;
 use Linux::Inotify2;
@@ -34,7 +35,18 @@ use strict;
 use warnings;
 
 use constant {
-    XML_IQ_VERSION => "<query xmlns='jabber:iq:version'><name>najabo</name><version>0.1</version><os>".`uname -o`."</os></query>",
+    XML_IQ_VERSION =>
+"<query xmlns='jabber:iq:version'>
+    <name>najabod</name>
+    <version>0.1</version>
+    <os>$Config{osname}</os>
+</query>",
+
+    XML_IQ_NOVCARD =>
+"<vCard xmlns='vcard-temp'/>",
+
+    XML_IQ_DISCO =>
+"<query xmlns='http://jabber.org/protocol/disco#info'/>",
 };
 
 our $opt_c = '/etc/najabo/najabo.conf';
@@ -44,11 +56,33 @@ die "Could not read config file '$opt_c'.\n" unless(-r $opt_c);
 my %xmpp_conf;
 my %auth_conf;
 my %nagios_conf;
-my %conf;
+my %najabo_conf;
 eval `cat "$opt_c"`;
 
 my $conn;
 my $last;
+
+
+# send vCard IQ
+sub SendVCard(%) {
+    my $iq = new Net::XMPP::IQ();
+    $iq->SetIQ(@_);
+
+    if (exists($najabo_conf{'vcard'}) &&
+        defined($najabo_conf{'vcard'}) &&
+        (-r $najabo_conf{'vcard'}) &&
+        open(FILEREAD, '<', $najabo_conf{'vcard'})) {
+
+        $iq->InsertRawXML(<FILEREAD>);
+        close(FILEREAD);
+    }
+    else {
+        $iq->InsertRawXML(XML_IQ_NOVCARD);
+    }
+
+    $conn->Send($iq);
+}
+
 
 # setup nagios status log stuff
 my $log = Nagios::StatusLog->new(%nagios_conf);
@@ -65,12 +99,6 @@ my $watch = $inotify->watch(dirname($nagios_conf{'Filename'}), IN_MOVED_TO, sub 
 
 while(1) {
     $conn = new Net::XMPP::Client;
-
-    # global stuff
-    $conn->{__iqname} = "NaJaBo";
-    $conn->{__iqversion} = '0.1';
-    $conn->{__iqos} = `uname -o`;
-    #$conn->{__vcard} = "conf/$bot/vcard";
 
     # register callbacks
     $conn->SetCallBacks(message=>\&InMessage, iq=>\&InIQ);
@@ -90,7 +118,7 @@ while(1) {
     }
 
     $conn->PresenceSend();
-    SetVCard();
+    SendVCard(type => 'set');
 
     # wait for XMPP messages and nagios status updates
     while(defined($conn->Process(5))) {
@@ -99,17 +127,6 @@ while(1) {
 
     warn "Connection broken, trying to reconnect...\n";
     sleep(30);
-}
-
-sub SetVCard() {
-#    if (-r $conn->{__vcard}) {
-#        open(FILEREAD, '< '.$conn->{__vcard});
-#        my $IQ = new Net::XMPP::IQ();
-#        $IQ->SetIQ(type => 'set');
-#        $IQ->InsertRawXML(<FILEREAD>);
-#        $conn->Send($IQ);
-#        close(FILEREAD);
-#    }
 }
 
 sub ParseStatus {
@@ -181,38 +198,34 @@ sub InIQ {
         my $xmlns = $query->GetXMLNS();
 
         if ($xmlns eq 'jabber:iq:version') {
-            my $IQ = new Net::XMPP::IQ();
-            $IQ->SetIQ(to => $from, from => $to, id => $id, type => 'result');
-            $IQ->InsertRawXML(XML_IQ_VERSION);
-            $conn->Send($IQ);
+            my $iq = new Net::XMPP::IQ();
+            $iq->SetIQ(to => $from, from => $to, id => $id, type => 'result');
+            $iq->InsertRawXML(XML_IQ_VERSION);
+            $conn->Send($iq);
         }
         elsif ($xmlns eq 'jabber:iq:last') {
-            my $IQ = new Net::XMPP::IQ();
-            $IQ->SetIQ(to => $from, from => $to, id => $id, type => 'result');
+            my $iq = new Net::XMPP::IQ();
+            $iq->SetIQ(to => $from, from => $to, id => $id, type => 'result');
             my $seconds = '';
             if(defined(my $i = $log->info)) {
                 $seconds = "seconds='".(time()-$i->created)."'" 
             }
-            $IQ->InsertRawXML("<query xmlns='jabber:iq:last' $seconds/>");
-            $conn->Send($IQ);
+            $iq->InsertRawXML("<query xmlns='jabber:iq:last' $seconds/>");
+            $conn->Send($iq);
         }
         elsif ($xmlns eq 'vcard-temp') {
-#            if (-r $conn->{__vcard}) {
-#                open(FILEREAD, '< '.$conn->{__vcard});
-#                my $IQ = new Net::XMPP::IQ();
-#                $IQ->SetIQ( to => $from,
-#                            from => $to,
-#                            id => $id,
-#                            type => 'result');
-#                $IQ->InsertRawXML(<FILEREAD>);
-#                $conn->Send($IQ);
-#                close(FILEREAD);
-#            }
+            SendVCard(
+                id => $id,
+                type => 'result',
+                to => $from,
+                from => $to,
+            );
         }
         elsif ($xmlns eq 'http://jabber.org/protocol/disco#info') {
-            my $reply = $iq->Reply(type=>'result');
-            my $query = $reply->NewQuery("http://jabber.org/protocol/disco#info");
-            $conn->Send($reply->GetXML());
+            my $iq = new Net::XMPP::IQ();
+            $iq->SetIQ(to => $from, from => $to, id => $id, type => 'result');
+            $iq->InsertRawXML(XML_IQ_DISCO);
+            $conn->Send($iq);
         }
         else {
             print STDERR "WARNING: Unhandled IQ: $xmlns\n";
