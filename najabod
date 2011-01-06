@@ -139,26 +139,47 @@ while(1) {
     sleep(30);
 }
 
+sub SortStates {
+    my %o = (
+        'CRITICAL' => 0,
+        'WARNING' => 1,
+        'UNKNOWN' => 2,
+        'OK' => 3,
+    );
+
+    return $a cmp $b unless(exists($o{$a}) && exists($o{$b}));
+    return $o{$a} <=> $o{$b};
+ }
+
 sub ParseStatus {
     $log->update();
 
     my %states;
     foreach my $host ($log->list_hosts) {
 	my $obj = $log->host($host);
-	push(@{$states{$obj->status}}, $obj->host_name);
+
+	foreach my $service ($log->list_services_on_host($host)) {
+	    my $srv = $log->service($host, $service);
+
+	    push(@{$states{$srv->status}}, $obj->host_name."/$service")
+		if(defined($srv->status));
+	}
     }
 
     my @states;
     my @details;
-    foreach my $status (keys %states) {
-	push(@states, ($#{$states{$status}} + 1).' '.$status);
+    foreach my $status (sort SortStates keys %states) {
+	my $t = $status;
+	$t =~ s/^(.{4}).+/$1/;
+
+	push(@states, ($#{$states{$status}} + 1).' '.$t);
 	push(@details, $status) unless(scalar grep {/^$status$/i} @{$najabo_conf{'filter_states'}});
     }
 
     my $status = join(', ', @states);
     $status .= "\n" unless($#details == -1);
     foreach my $detail (@details) {
-	$status .= "\n$detail: ".join(', ', sort @{$states{$detail}});
+	$status .= "\n$detail:\n ".join("\n ", sort @{$states{$detail}})."\n";
     }
 
     # map nagios status
