@@ -1,0 +1,20 @@
+Source: najabo
+Section: net
+Priority: extra
+Maintainer: Thomas Liske <thomas@fiasko-nw.net>
+Build-Depends: debhelper (>= 7.0.50~)
+Standards-Version: 3.8.4
+Homepage: https://github.com/liske/najabo
+Vcs-Git: git://github.com/liske/najabo.git
+
+Package: najabo
+Architecture: all
+Pre-Depends: nagios3 | nagios
+Depends: libnet-xmpp-perl (>> 1.02-1), liblinux-inotify2-perl, liblog-dispatch-perl, libproc-daemon-perl, libproc-pid-file-perl, libnagios-object-perl
+Description: Nagios Jabber Bot
+ najabo formats and exports the nagios status log as a XMPP client. It
+ is possible to watch the most recent nagios status as XMPP presence
+ data.
+ .
+ najabo should work with any nagios version, although it is only tested
+ with nagios versions avaible in Debian (etch 'til squeeze).
