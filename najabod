@@ -67,6 +67,10 @@ my $logfmt = sub { my %p = @_; chomp($p{'message'}); return ("[$p{level}] $p{mes
 my $logffile = sub { my %p = @_;  return (scalar localtime())." [$$] $p{message}"; };
 my $logger = Log::Dispatch->new(callbacks => $logfmt);
 
+END {
+    $logger->notice('terminated') if(defined($logger));
+}
+
 $logger->add(
     Log::Dispatch::Screen->new(
 	name => 'console',
