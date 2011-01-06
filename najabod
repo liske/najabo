@@ -29,6 +29,8 @@ use File::Basename;
 use Getopt::Std;
 use Linux::Inotify2;
 use POSIX qw(strftime);
+use Proc::Daemon;
+use Proc::PID::File;
 use Net::XMPP;
 use Nagios::StatusLog;
 
@@ -56,7 +58,8 @@ use constant {
 };
 
 our $opt_c = '/etc/najabo/najabo.conf';
-getopt('c:');
+our $opt_f = 0;
+getopt('c:f');
 die "Could not read config file '$opt_c'.\n" unless(-r $opt_c);
 
 my %xmpp_conf;
@@ -102,6 +105,14 @@ my $watch = $inotify->watch(dirname($nagios_conf{'Filename'}), IN_MOVED_TO, sub 
     my $e = shift;
     ParseStatus() if($e->IN_MOVED_TO && ($e->fullname eq $nagios_conf{'Filename'}));
 }) or die "Could not setup inotify watch: $!\n";
+
+unless($opt_f) {
+    # daemonize
+    Proc::Daemon::Init();
+
+    # check if we are alone
+    die "$0 is already running!\n" if(Proc::PID::File->running(verify => 1));
+}
 
 while(1) {
     $conn = new Net::XMPP::Client;
