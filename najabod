@@ -28,6 +28,10 @@ use Config;
 use File::Basename;
 use Getopt::Std;
 use Linux::Inotify2;
+use Log::Dispatch;
+use Log::Dispatch::Screen;
+use Log::Dispatch::Syslog;
+use Log::Dispatch::File;
 use POSIX qw(strftime);
 use Proc::Daemon;
 use Proc::PID::File;
@@ -38,6 +42,8 @@ use strict;
 use warnings;
 
 use constant {
+    NAJABOD_VERSION => '0.1',
+
     XML_IQ_VERSION =>
 "<query xmlns='jabber:iq:version'>
     <name>najabod</name>
@@ -57,16 +63,60 @@ use constant {
 </query>",
 };
 
+my $logfmt = sub { my %p = @_; chomp($p{'message'}); return ("[$p{level}] $p{message}\n"); };
+my $logffile = sub { my %p = @_;  return (scalar localtime())." [$$] $p{message}"; };
+my $logger = Log::Dispatch->new(callbacks => $logfmt);
+
+$logger->add(
+    Log::Dispatch::Screen->new(
+	name => 'console',
+	min_level => 'notice',
+    )
+);
+
+sub mydie($) {
+    $logger->critical(shift);
+    exit 1;
+}
+
 our $opt_c = '/etc/najabo/najabo.conf';
-our $opt_f = 0;
-getopt('c:f');
-die "Could not read config file '$opt_c'.\n" unless(-r $opt_c);
+our $opt_f;
+getopts('fc:');
+mydie("Could not read config file '$opt_c'.") unless(-r $opt_c);
+$logger->info("config file: '$opt_c'");
 
 my %xmpp_conf;
 my %auth_conf;
 my %nagios_conf;
 my %najabo_conf;
 eval `cat "$opt_c"`;
+
+# enable log to file
+if(exists($najabo_conf{'logfile'})) {
+    $logger->add(
+	Log::Dispatch::File->new(
+	    name => 'logfile',
+	    min_level => 'info',
+	    filename => $najabo_conf{'logfile'},
+	    close_after_write => '1',
+	    callbacks => $logffile,
+	)
+    );
+}
+# fallback to syslog
+else {
+    $logger->add(
+	Log::Dispatch::Syslog->new(
+	    name => 'syslog',
+	    min_level => 'info',
+	    ident => 'najabod',
+	    logopt => 'pid',
+	    facility => 'daemon',
+	)
+    );
+}
+
+$logger->info('najabod '.NAJABOD_VERSION);
 
 my $conn;
 my $last;
@@ -97,21 +147,31 @@ sub SendVCard(%) {
 my $log = Nagios::StatusLog->new(%nagios_conf);
 
 # setup inotify
-my $inotify = new Linux::Inotify2 or die "Unable to create new inotify object: $!\n";
+my $inotify = new Linux::Inotify2 or mydie "Unable to create new inotify object: $!";
 $inotify->blocking(0);
 
 # add inotify watch
+$logger->info("nagios status log: $nagios_conf{Filename}");
+$logger->info("nagios version: $nagios_conf{Version}");
+
 my $watch = $inotify->watch(dirname($nagios_conf{'Filename'}), IN_MOVED_TO, sub {
     my $e = shift;
     ParseStatus() if($e->IN_MOVED_TO && ($e->fullname eq $nagios_conf{'Filename'}));
-}) or die "Could not setup inotify watch: $!\n";
+}) or mydie "Could not setup inotify watch: $!";
 
 unless($opt_f) {
     # daemonize
-    Proc::Daemon::Init();
+    eval { Proc::Daemon::Init() };
+    mydie "Unable to fork daemon: $@" if($@);
 
     # check if we are alone
-    die "$0 is already running!\n" if(Proc::PID::File->running(verify => 1));
+    eval {
+	die "Daemon is already running or PID file is stale!" if(Proc::PID::File->running(verify => 1));
+    };
+    mydie "Failed to setup PID file: $@" if($@);
+
+    # detach log to console
+    $logger->notice('Could not remove console dispatcher!') unless($logger->remove('console'));
 }
 
 while(1) {
@@ -122,18 +182,20 @@ while(1) {
 
     # try to connect
     unless($conn->Connect(%xmpp_conf)) {
-        warn "Could not connect to XMPP server: $!\n";
+        $logger->warning("Could not connect to XMPP server ($!), sleeping 30 seconds!");
         sleep(30);
         next;
     }
+    $logger->info('XMPP server connected');
 
     # try to auth
     my @result = $conn->AuthSend(%auth_conf);
     unless($result[0] eq 'ok') {
-        warn "Authorization failed: $result[1]\n";
+        $logger->warning("Auth failed ($result[1]), sleeping 60 seconds!");
         sleep(60);
         next;
     }
+    $logger->info('XMPP auth ok');
 
     $conn->PresenceSend(
 	status => 'Initializing...',
@@ -146,7 +208,7 @@ while(1) {
 	$inotify->poll;
     }
 
-    warn "Connection broken, trying to reconnect...\n";
+    $logger->warning('Connection broken, sleeping 30 seconds!');
     sleep(30);
 }
 
@@ -298,7 +360,7 @@ sub InIQ {
             $conn->Send($iq);
         }
         else {
-            print STDERR "WARNING: Unhandled IQ: $xmlns\n";
+            $logger->warning("Unhandled IQ: $xmlns");
         }
     }
 }
