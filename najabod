@@ -166,7 +166,7 @@ unless($opt_f) {
 
     # check if we are alone
     eval {
-	die "Daemon is already running or PID file is stale!" if(Proc::PID::File->running(verify => 1));
+	die "Daemon is already running or PID file is stale!" if(Proc::PID::File->running(verify => 1, dir => $najabo_conf{'rundir'}));
     };
     mydie "Failed to setup PID file: $@" if($@);
 
