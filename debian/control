@@ -11,6 +11,7 @@ Package: najabo
 Architecture: all
 Pre-Depends: nagios3 | nagios
 Depends: libnet-xmpp-perl (>> 1.02-1), liblinux-inotify2-perl, liblog-dispatch-perl, libproc-daemon-perl, libproc-pid-file-perl, libnagios-object-perl
+Recommends: libnet-dns-perl
 Description: Nagios Jabber Bot
  najabo formats and exports the nagios status log as a XMPP client. It
  is possible to watch the most recent nagios status as XMPP presence
