@@ -147,21 +147,13 @@ sub SendVCard(%) {
 }
 
 
-# setup nagios status log stuff
-my $log = Nagios::StatusLog->new(%nagios_conf);
-
-# setup inotify
-my $inotify = new Linux::Inotify2 or mydie "Unable to create new inotify object: $!";
-$inotify->blocking(0);
-
-# add inotify watch
+# setup Nagios::StatusLog stuff
 $logger->info("nagios status log: $nagios_conf{Filename}");
 $logger->info("nagios version: $nagios_conf{Version}");
 
-my $watch = $inotify->watch(dirname($nagios_conf{'Filename'}), IN_MOVED_TO, sub {
-    my $e = shift;
-    ParseStatus() if($e->IN_MOVED_TO && ($e->fullname eq $nagios_conf{'Filename'}));
-}) or mydie "Could not setup inotify watch: $!";
+my $log;
+eval { $log = Nagios::StatusLog->new(%nagios_conf); };
+mydie "Failed to initialize Nagios::StatusLog: $@" if($@);
 
 unless($opt_f) {
     # daemonize
@@ -177,6 +169,16 @@ unless($opt_f) {
     # detach log to console
     $logger->notice('Could not remove console dispatcher!') unless($logger->remove('console'));
 }
+
+# setup inotify
+my $inotify = new Linux::Inotify2 or mydie "Unable to create new inotify object: $!";
+$inotify->blocking(0);
+
+# add inotify watch
+my $watch = $inotify->watch(dirname($nagios_conf{'Filename'}), IN_MOVED_TO, sub {
+    my $e = shift;
+    ParseStatus() if($e->IN_MOVED_TO && ($e->fullname eq $nagios_conf{'Filename'}));
+}) or mydie "Could not setup inotify watch: $!";
 
 while(1) {
     $conn = new Net::XMPP::Client;
