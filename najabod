@@ -237,11 +237,16 @@ sub ParseStatus {
     foreach my $host ($log->list_hosts) {
 	my $obj = $log->host($host);
 
-	foreach my $service ($log->list_services_on_host($host)) {
-	    my $srv = $log->service($host, $service);
+	if(scalar grep {/^$obj->status$/i} qw(OK WARNING CRITICAL)) {
+	    foreach my $service ($log->list_services_on_host($host)) {
+		my $srv = $log->service($host, $service);
 
-	    push(@{$states{$srv->status}}, $obj->host_name."/$service")
-		if(defined($srv->status));
+		push(@{$states{$srv->status}}, $obj->host_name."/$service")
+		    if(defined($srv->status));
+	    }
+	}
+	else {
+	    push(@{$states{$obj->status}}, $obj->host_name)
 	}
     }
 
