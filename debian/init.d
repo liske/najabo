@@ -14,7 +14,7 @@
 
 # PATH should only include /usr/* if it runs after the mountnfs.sh script
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
-DESC=najabod             # Introduce a short description here
+DESC="Nagios Jabber Bot" # Introduce a short description here
 NAME=najabod             # Introduce the short server's name here
 DAEMON=/usr/sbin/najabod # Introduce the server's location here
 DAEMON_ARGS=""           # Arguments to run the daemon with
