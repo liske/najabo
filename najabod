@@ -69,8 +69,9 @@ my $logfmt = sub { my %p = @_; chomp($p{'message'}); return ("[$p{level}] $p{mes
 my $logffile = sub { my %p = @_;  return (scalar localtime())." [$$] $p{message}"; };
 my $logger = Log::Dispatch->new(callbacks => $logfmt);
 
+my $daemonize;
 END {
-    $logger->notice('terminated') if(defined($logger));
+    $logger->notice('terminated') if(defined($logger) && !defined($daemonize));
 }
 
 $logger->add(
@@ -159,7 +160,9 @@ mydie "Failed to initialize Nagios::StatusLog: $@" if($@);
 
 unless($opt_f) {
     # daemonize
+    $daemonize = 1;
     eval { Proc::Daemon::Init() };
+    $daemonize = undef;
     mydie "Unable to fork daemon: $@" if($@);
 
     # check if we are alone
