@@ -230,54 +230,84 @@ sub SortStates {
     return $o{$a} <=> $o{$b};
  }
 
+sub GetFlags($) {
+    my $p = shift;
+
+    my @flags;
+
+    push(@flags, 'S') if($p->state_type eq 'SOFT');
+    push(@flags, 'D') unless($p->checks_enabled);
+    push(@flags, 'F') if($p->is_flapping);
+    push(@flags, 'A') if($p->problem_has_been_acknowledged);
+
+    return @flags;
+}
+
 sub ParseStatus {
     $log->update();
 
     my %states;
+    my %notify_states;
     foreach my $host ($log->list_hosts) {
-	my $obj = $log->host($host);
+        my $obj = $log->host($host);
 
-	if(scalar grep {/^$obj->status$/i} qw(OK WARNING CRITICAL)) {
-	    foreach my $service ($log->list_services_on_host($host)) {
-		my $srv = $log->service($host, $service);
+        my $status = $obj->status;
+        if(scalar grep {/^$status$/i} qw(UP OK WARNING CRITICAL)) {
+            foreach my $service ($log->list_services_on_host($host)) {
+                my $srv = $log->service($host, $service);
 
-		push(@{$states{$srv->status}}, $obj->host_name."/$service")
-		    if(defined($srv->status));
-	    }
-	}
-	else {
-	    push(@{$states{$obj->status}}, $obj->host_name)
-	}
+                if(defined($srv->status)) {
+                    $notify_states{$srv->status} = 1 unless($srv->problem_has_been_acknowledged);
+                    my @flags = GetFlags($srv);
+
+                    my $line = $obj->host_name;
+                    $line .= "/$service";
+                    $line .= ' ['.join('', @flags).']' if($#flags > -1);
+
+                    push(@{$states{$srv->status}}, $line);
+                }
+            }
+        }
+        else {
+            $notify_states{$status} = 1 unless($obj->problem_has_been_acknowledged);
+            my @flags = GetFlags($obj);
+
+            my $line = $obj->host_name;
+            $line .= ' ['.join('', @flags).']' if($#flags > -1);
+
+            push(@{$states{$obj->status}}, $line);
+        }
     }
 
     my @states;
     my @details;
     foreach my $status (sort SortStates keys %states) {
-	my $t = $status;
-	$t =~ s/^(.{4}).+/$1/;
+        my $t = $status;
+        $t =~ s/^(.{4}).+/$1/;
 
-	push(@states, ($#{$states{$status}} + 1).' '.$t);
-	push(@details, $status) unless(scalar grep {/^$status$/i} @{$najabo_conf{'filter_states'}});
+        push(@states, ($#{$states{$status}} + 1).' '.$t);
+        push(@details, $status) unless(scalar grep {/^$status$/i} @{$najabo_conf{'filter_states'}});
     }
 
     my $status = join(', ', @states);
     $status .= "\n" unless($#details == -1);
     foreach my $detail (@details) {
-	$status .= "\n$detail:\n ".join("\n ", sort @{$states{$detail}})."\n";
+        $status .= "\n$detail:\n ".join("\n ", sort @{$states{$detail}})."\n";
     }
 
     # map nagios status
     my $show = 'online';
-    if(exists($states{'DOWN'}) || exists($states{'CRITICAL'})) {
-	$show = 'xa';
+    if((exists($states{'DOWN'}) && exists($notify_states{'DOWN'})) ||
+       (exists($states{'CRITICAL'}) && exists($notify_states{'CRITICAL'}))) {
+        $show = 'xa';
     }
-    elsif(exists($states{'WARNING'})) {
-	$show = 'away';
+    elsif(exists($states{'WARNING'}) && exists($notify_states{'WARNING'})) {
+        $show = 'away';
     }
 
     $conn->PresenceSend(
-	status => $status,
-	show => $show,
+        status => $status,
+        show => $show,
     );
 }
 
