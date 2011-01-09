@@ -275,7 +275,7 @@ sub ParseStatus {
             }
         }
         else {
-            $notify_states{$status} = 1 unless($obj->problem_has_been_acknowledged || $srv->scheduled_downtime_depth);
+            $notify_states{$status} = 1 unless($obj->problem_has_been_acknowledged || $obj->scheduled_downtime_depth);
             my @flags = GetFlags($obj);
 
             my $line = $obj->host_name;
