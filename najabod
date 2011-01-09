@@ -41,6 +41,8 @@ use Nagios::StatusLog;
 use strict;
 use warnings;
 
+$0 = 'najabod';
+
 use constant {
     NAJABOD_VERSION => '0.1',
 
