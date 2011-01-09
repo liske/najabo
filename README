@@ -16,7 +16,6 @@ support like ejabberd.
 Status flags
 ============
 
-N	host/service checks not enabled
 D	host/service in scheduled downtime
 F	host/service state is flapping
 A	host/service state has been acknowledged

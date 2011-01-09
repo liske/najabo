@@ -240,7 +240,6 @@ sub GetFlags($) {
 
     my @flags;
 
-    push(@flags, 'N') unless($p->checks_enabled);
     push(@flags, 'D') if($p->scheduled_downtime_depth);
     push(@flags, 'F') if($p->is_flapping);
     push(@flags, 'A') if($p->problem_has_been_acknowledged);
