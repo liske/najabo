@@ -49,7 +49,7 @@ use constant {
     XML_IQ_VERSION =>
 "<query xmlns='jabber:iq:version'>
     <name>najabod</name>
-    <version>0.1</version>
+    <version>%NAJVER%</version>
     <os>nagios %NAGVER%($Config{osname})</os>
 </query>",
 
@@ -350,6 +350,7 @@ sub InIQ {
 
             my $ver = XML_IQ_VERSION;
             my $i;
+            $ver =~ s/%NAJVER%/${\(NAJABOD_VERSION)}/;
             if(defined($i = $log->info) && defined($i->version)) {
                 $ver =~ s/%NAGVER%/${$i}{version} /;
             }
