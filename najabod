@@ -44,7 +44,7 @@ use warnings;
 $0 = 'najabod';
 
 use constant {
-    NAJABOD_VERSION => '0.1',
+    NAJABOD_VERSION => '0.2',
 
     XML_IQ_VERSION =>
 "<query xmlns='jabber:iq:version'>
