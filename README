@@ -1,3 +1,13 @@
+Status flags
+============
+
+S	host/service in soft state
+N	host/service checks not enabled
+D	host/service in scheduled downtime
+F	host/service state is flapping
+A	host/service state has been acknowledged
+
+
 Implemented XEPs
 ================
 
