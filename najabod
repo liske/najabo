@@ -220,10 +220,12 @@ while(1) {
 
 sub SortStates {
     my %o = (
-        'CRITICAL' => 0,
-        'WARNING' => 1,
-        'UNKNOWN' => 2,
-        'OK' => 3,
+        'DOWN' => 0,
+        'CRITICAL' => 1,
+        'WARNING' => 2,
+        'UNREACHABLE' => 3,
+        'UNKNOWN' => 4,
+        'OK' => 5,
     );
 
     return $a cmp $b unless(exists($o{$a}) && exists($o{$b}));
