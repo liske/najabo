@@ -18,7 +18,7 @@ DESC=najabod             # Introduce a short description here
 NAME=najabod             # Introduce the short server's name here
 DAEMON=/usr/sbin/najabod # Introduce the server's location here
 DAEMON_ARGS=""           # Arguments to run the daemon with
-PIDFILE=/var/run/$NAME.pid
+PIDFILE=/var/run/najabo/$NAME.pid
 SCRIPTNAME=/etc/init.d/$NAME
 USERNAME=najabo
 
