@@ -1,3 +1,15 @@
+najabo (0.2) unstable; urgency=low
+
+  * Improve init.d script.
+  * Add host/service flags.
+  * Down/unreachable hosts are reported
+    only once (not for each service).
+  * Improve packaging.
+  * Fix logging after fork into background.
+  * Several improvements and fixes.
+
+ -- Thomas Liske <thomas@fiasko-nw.net>  Sun, 09 Jan 2011 20:22:02 +0100
+
 najabo (0.1) unstable; urgency=low
 
   * Initial Release.

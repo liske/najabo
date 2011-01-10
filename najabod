@@ -41,13 +41,15 @@ use Nagios::StatusLog;
 use strict;
 use warnings;
 
+$0 = 'najabod';
+
 use constant {
-    NAJABOD_VERSION => '0.1',
+    NAJABOD_VERSION => '0.2',
 
     XML_IQ_VERSION =>
 "<query xmlns='jabber:iq:version'>
     <name>najabod</name>
-    <version>0.1</version>
+    <version>%NAJVER%</version>
     <os>nagios %NAGVER%($Config{osname})</os>
 </query>",
 
@@ -61,14 +63,20 @@ use constant {
     <feature var='urn:xmpp:time'/>
     <feature var='vcard-temp'/>
 </query>",
+
+    XML_IQ_NOTIMPL =>
+"<error type='cancel'>
+    <feature-not-implemented xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/>
+</error>",
 };
 
 my $logfmt = sub { my %p = @_; chomp($p{'message'}); return ("[$p{level}] $p{message}\n"); };
 my $logffile = sub { my %p = @_;  return (scalar localtime())." [$$] $p{message}"; };
 my $logger = Log::Dispatch->new(callbacks => $logfmt);
 
+my $daemonize;
 END {
-    $logger->notice('terminated') if(defined($logger));
+    $logger->notice('terminated') if(defined($logger) && !defined($daemonize));
 }
 
 $logger->add(
@@ -157,7 +165,9 @@ mydie "Failed to initialize Nagios::StatusLog: $@" if($@);
 
 unless($opt_f) {
     # daemonize
+    $daemonize = 1;
     eval { Proc::Daemon::Init() };
+    $daemonize = undef;
     mydie "Unable to fork daemon: $@" if($@);
 
     # check if we are alone
@@ -180,6 +190,8 @@ my $watch = $inotify->watch(dirname($nagios_conf{'Filename'}), IN_MOVED_TO, sub 
     ParseStatus() if($e->IN_MOVED_TO && ($e->fullname eq $nagios_conf{'Filename'}));
 }) or mydie "Could not setup inotify watch: $!";
 
+my $presence_status = 'Initializing...';
+my $presence_show => 'dnd';
 while(1) {
     $conn = new Net::XMPP::Client;
 
@@ -204,8 +216,8 @@ while(1) {
     $logger->info('XMPP auth ok');
 
     $conn->PresenceSend(
-	status => 'Initializing...',
-	show => 'dnd',
+	status => $presence_status,
+	show => $presence_show,
     );
     SendVCard(type => 'set');
 
@@ -214,7 +226,10 @@ while(1) {
 	$inotify->poll;
     }
 
-    $logger->warning('Connection broken, sleeping 30 seconds!');
+    $presence_status = 'XMPP connection broken...';
+    $presence_show => 'dnd';
+
+    $logger->warning('XMPP connection broken, sleeping 30 seconds!');
     sleep(30);
 }
 
@@ -232,55 +247,92 @@ sub SortStates {
     return $o{$a} <=> $o{$b};
  }
 
+sub GetFlags($) {
+    my $p = shift;
+
+    my @flags;
+
+    push(@flags, 'D') if($p->scheduled_downtime_depth);
+    push(@flags, 'F') if($p->is_flapping);
+    push(@flags, 'A') if($p->problem_has_been_acknowledged);
+
+    return @flags;
+}
+
 sub ParseStatus {
     $log->update();
 
     my %states;
+    my %notify_states;
     foreach my $host ($log->list_hosts) {
-	my $obj = $log->host($host);
+        my $obj = $log->host($host);
 
-	if(scalar grep {/^$obj->status$/i} qw(OK WARNING CRITICAL)) {
-	    foreach my $service ($log->list_services_on_host($host)) {
-		my $srv = $log->service($host, $service);
+        my $status = $obj->status;
+        if(scalar grep {/^$status$/i} qw(UP OK WARNING CRITICAL)) {
+            foreach my $service ($log->list_services_on_host($host)) {
+                my $srv = $log->service($host, $service);
 
-		push(@{$states{$srv->status}}, $obj->host_name."/$service")
-		    if(defined($srv->status));
-	    }
-	}
-	else {
-	    push(@{$states{$obj->status}}, $obj->host_name)
-	}
+                if(defined($srv->status)) {
+                    $notify_states{$srv->status} = 1 unless($srv->problem_has_been_acknowledged || $srv->scheduled_downtime_depth);
+                    my @flags = GetFlags($srv);
+
+                    my $line = $obj->host_name;
+                    $line .= "/$service";
+                    $line .= ' ['.join('', @flags).']' if($#flags > -1);
+
+                    push(@{$states{$srv->status}}, $line);
+                }
+            }
+        }
+        else {
+            $notify_states{$status} = 1 unless($obj->problem_has_been_acknowledged || $obj->scheduled_downtime_depth);
+            my @flags = GetFlags($obj);
+
+            my $line = $obj->host_name;
+            $line .= ' ['.join('', @flags).']' if($#flags > -1);
+
+            push(@{$states{$obj->status}}, $line);
+        }
     }
 
     my @states;
     my @details;
     foreach my $status (sort SortStates keys %states) {
-	my $t = $status;
-	$t =~ s/^(.{4}).+/$1/;
+        my $t = $status;
+        $t =~ s/^(.{4}).+/$1/;
 
-	push(@states, ($#{$states{$status}} + 1).' '.$t);
-	push(@details, $status) unless(scalar grep {/^$status$/i} @{$najabo_conf{'filter_states'}});
+        push(@states, ($#{$states{$status}} + 1).' '.$t);
+        push(@details, $status) unless(scalar grep {/^$status$/i} @{$najabo_conf{'filter_states'}});
     }
 
     my $status = join(', ', @states);
     $status .= "\n" unless($#details == -1);
     foreach my $detail (@details) {
-	$status .= "\n$detail:\n ".join("\n ", sort @{$states{$detail}})."\n";
+        $status .= "\n$detail:\n ".join("\n ", sort @{$states{$detail}})."\n";
     }
 
     # map nagios status
     my $show = 'online';
-    if(exists($states{'DOWN'}) || exists($states{'CRITICAL'})) {
-	$show = 'xa';
+    if((exists($states{'DOWN'}) && exists($notify_states{'DOWN'})) ||
+       (exists($states{'CRITICAL'}) && exists($notify_states{'CRITICAL'}))) {
+        $show = 'xa';
     }
-    elsif(exists($states{'WARNING'})) {
-	$show = 'away';
+    elsif(exists($states{'WARNING'}) && exists($notify_states{'WARNING'})) {
+        $show = 'away';
     }
 
-    $conn->PresenceSend(
-	status => $status,
-	show => $show,
-    );
+    # only update, if something has changed
+    if(($presence_status ne $status) ||
+       ($presence_show ne $show)) {
+
+	$presence_status = $status;
+	$presence_show = $show;
+
+	$conn->PresenceSend(
+	    status => $presence_status,
+	    show => $presence_show,
+	);
+    }
 }
 
 # we've got a message
@@ -320,6 +372,7 @@ sub InIQ {
 
             my $ver = XML_IQ_VERSION;
             my $i;
+            $ver =~ s/%NAJVER%/${\(NAJABOD_VERSION)}/;
             if(defined($i = $log->info) && defined($i->version)) {
                 $ver =~ s/%NAGVER%/${$i}{version} /;
             }
@@ -373,7 +426,12 @@ sub InIQ {
             $conn->Send($iq);
         }
         else {
-            $logger->warning("Unhandled IQ: $xmlns");
+            my $iq = new Net::XMPP::IQ();
+            $iq->SetIQ(to => $from, from => $to, id => $id, type => 'error');
+            $iq->InsertRawXML(XML_IQ_NOT_IMPL);
+            $conn->Send($iq);
+
+            $logger->notice("Unhandled IQ: $xmlns");
         }
     }
 }

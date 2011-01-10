@@ -1,3 +1,26 @@
+najabod
+=======
+
+najabod is a Nagios Jabber Bot. najabod connects to a XMPP server as a
+XMPP client. It reads the nagios status log and shows an overview of the
+current states of the monitored nodes. Further version will allow you
+to query detailed informations, acknowledge problems and schedule
+downtimes etc.
+
+The current version has no ACL and did not support precense
+subscription, yet. You will need to do the presence subscription with
+your favorite XMPP client or use a XMPP server with shared roster
+support like ejabberd.
+
+
+Status flags
+============
+
+D	host/service in scheduled downtime
+F	host/service state is flapping
+A	host/service state has been acknowledged
+
+
 Implemented XEPs
 ================
 
