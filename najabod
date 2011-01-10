@@ -190,6 +190,8 @@ my $watch = $inotify->watch(dirname($nagios_conf{'Filename'}), IN_MOVED_TO, sub 
     ParseStatus() if($e->IN_MOVED_TO && ($e->fullname eq $nagios_conf{'Filename'}));
 }) or mydie "Could not setup inotify watch: $!";
 
+my $presence_status = 'Initializing...';
+my $presence_show => 'dnd';
 while(1) {
     $conn = new Net::XMPP::Client;
 
@@ -214,8 +216,8 @@ while(1) {
     $logger->info('XMPP auth ok');
 
     $conn->PresenceSend(
-	status => 'Initializing...',
-	show => 'dnd',
+	status => $presence_status,
+	show => $presence_show,
     );
     SendVCard(type => 'set');
 
@@ -224,7 +226,10 @@ while(1) {
 	$inotify->poll;
     }
 
-    $logger->warning('Connection broken, sleeping 30 seconds!');
+    $presence_status = 'XMPP connection broken...';
+    $presence_show => 'dnd';
+
+    $logger->warning('XMPP connection broken, sleeping 30 seconds!');
     sleep(30);
 }
 
@@ -314,10 +319,18 @@ sub ParseStatus {
         $show = 'away';
     }
 
-    $conn->PresenceSend(
-        status => $status,
-        show => $show,
-    );
+    # only update, if something has changed
+    if(($presence_status ne $status) ||
+       ($presence_show ne $show)) {
+
+	$presence_status = $status;
+	$presence_show = $show;
+
+	$conn->PresenceSend(
+	    status => $presence_status,
+	    show => $presence_show,
+	);
+    }
 }
 
 # we've got a message
