@@ -191,7 +191,7 @@ my $watch = $inotify->watch(dirname($nagios_conf{'Filename'}), IN_MOVED_TO, sub 
 }) or mydie "Could not setup inotify watch: $!";
 
 my $presence_status = 'Initializing...';
-my $presence_show => 'dnd';
+my $presence_show = 'dnd';
 while(1) {
     $conn = new Net::XMPP::Client;
 
