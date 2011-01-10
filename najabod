@@ -428,7 +428,7 @@ sub InIQ {
         else {
             my $iq = new Net::XMPP::IQ();
             $iq->SetIQ(to => $from, from => $to, id => $id, type => 'error');
-            $iq->InsertRawXML(XML_IQ_NOT_IMPL);
+            $iq->InsertRawXML(XML_IQ_NOTIMPL);
             $conn->Send($iq);
 
             $logger->notice("Unhandled IQ: $xmlns");
