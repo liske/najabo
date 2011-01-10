@@ -60,6 +60,7 @@ use constant {
 "<query xmlns='http://jabber.org/protocol/disco#info'>
     <feature var='jabber:iq:last'/>
     <feature var='jabber:iq:version'/>
+    <feature var='urn:xmpp:ping'/>
     <feature var='urn:xmpp:time'/>
     <feature var='vcard-temp'/>
 </query>",
@@ -423,6 +424,11 @@ sub InIQ {
             my $iq = new Net::XMPP::IQ();
             $iq->SetIQ(to => $from, from => $to, id => $id, type => 'result');
             $iq->InsertRawXML(XML_IQ_DISCO);
+            $conn->Send($iq);
+        }
+        elsif ($xmlns eq 'urn:xmpp:ping') {
+            my $iq = new Net::XMPP::IQ();
+            $iq->SetIQ(to => $from, from => $to, id => $id, type => 'result');
             $conn->Send($iq);
         }
         else {
