@@ -227,7 +227,7 @@ while(1) {
     }
 
     $presence_status = 'XMPP connection broken...';
-    $presence_show => 'dnd';
+    $presence_show = 'dnd';
 
     $logger->warning('XMPP connection broken, sleeping 30 seconds!');
     sleep(30);
@@ -321,7 +321,7 @@ sub ParseStatus {
         $show = 'away';
     }
 
-    # only update, if something has changed
+    # only update if something has changed
     if(($presence_status ne $status) ||
        ($presence_show ne $show)) {
 
