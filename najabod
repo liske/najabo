@@ -63,6 +63,11 @@ use constant {
     <feature var='urn:xmpp:time'/>
     <feature var='vcard-temp'/>
 </query>",
+
+    XML_IQ_NOTIMPL =>
+"<error type='cancel'>
+    <feature-not-implemented xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/>
+</error>",
 };
 
 my $logfmt = sub { my %p = @_; chomp($p{'message'}); return ("[$p{level}] $p{message}\n"); };
@@ -406,7 +411,12 @@ sub InIQ {
             $conn->Send($iq);
         }
         else {
-            $logger->warning("Unhandled IQ: $xmlns");
+            my $iq = new Net::XMPP::IQ();
+            $iq->SetIQ(to => $from, from => $to, id => $id, type => 'error');
+            $iq->InsertRawXML(XML_IQ_NOT_IMPL);
+            $conn->Send($iq);
+
+            $logger->notice("Unhandled IQ: $xmlns");
         }
     }
 }
