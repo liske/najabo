@@ -241,7 +241,9 @@ sub SortStates {
         'WARNING' => 2,
         'UNREACHABLE' => 3,
         'UNKNOWN' => 4,
-        'OK' => 5,
+        'ACKNOWLEDGED' => 5,
+        'SCHEDULED' => 6,
+        'OK' => 7,
     );
 
     return $a cmp $b unless(exists($o{$a}) && exists($o{$b}));
@@ -253,9 +255,7 @@ sub GetFlags($) {
 
     my @flags;
 
-    push(@flags, 'D') if($p->scheduled_downtime_depth);
     push(@flags, 'F') if($p->is_flapping);
-    push(@flags, 'A') if($p->problem_has_been_acknowledged);
 
     return @flags;
 }
@@ -264,7 +264,6 @@ sub ParseStatus {
     $log->update();
 
     my %states;
-    my %notify_states;
     foreach my $host ($log->list_hosts) {
         my $obj = $log->host($host);
 
@@ -274,25 +273,43 @@ sub ParseStatus {
                 my $srv = $log->service($host, $service);
 
                 if(defined($srv->status)) {
-                    $notify_states{$srv->status} = 1 unless($srv->problem_has_been_acknowledged || $srv->scheduled_downtime_depth);
+                    my $status = $srv->status;
                     my @flags = GetFlags($srv);
+
+                    if($srv->scheduled_downtime_depth) {
+                        $status = 'SCHEDULED';
+                        push(@flags, substr($srv->status, 0, 1));
+                    }
+                    elsif($srv->problem_has_been_acknowledged) {
+                        $status = 'ACKNOWLEDGED';
+                        push(@flags, substr($srv->status, 0, 1));
+                    }
 
                     my $line = $obj->host_name;
                     $line .= "/$service";
                     $line .= ' ['.join('', @flags).']' if($#flags > -1);
 
-                    push(@{$states{$srv->status}}, $line);
+                    push(@{$states{$status}}, $line);
                 }
             }
         }
         else {
-            $notify_states{$status} = 1 unless($obj->problem_has_been_acknowledged || $obj->scheduled_downtime_depth);
+            my $status = $obj->status;
             my @flags = GetFlags($obj);
+
+            if($obj->scheduled_downtime_depth) {
+                $status = 'SCHEDULED';
+                push(@flags, substr($obj->status, 0, 1));
+            }
+            elsif($obj->problem_has_been_acknowledged) {
+                $status = 'ACKNOWLEDGED';
+                push(@flags, substr($obj->status, 0, 1));
+            }
 
             my $line = $obj->host_name;
             $line .= ' ['.join('', @flags).']' if($#flags > -1);
 
-            push(@{$states{$obj->status}}, $line);
+            push(@{$states{$status}}, $line);
         }
     }
 
@@ -314,11 +331,10 @@ sub ParseStatus {
 
     # map nagios status
     my $show = 'online';
-    if((exists($states{'DOWN'}) && exists($notify_states{'DOWN'})) ||
-       (exists($states{'CRITICAL'}) && exists($notify_states{'CRITICAL'}))) {
+    if(exists($states{'DOWN'}) || exists($states{'CRITICAL'})) {
         $show = 'xa';
     }
-    elsif(exists($states{'WARNING'}) && exists($notify_states{'WARNING'})) {
+    elsif(exists($states{'WARNING'})) {
         $show = 'away';
     }
 

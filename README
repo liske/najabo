@@ -16,9 +16,11 @@ support like ejabberd.
 Status flags
 ============
 
-D	host/service in scheduled downtime
+D	host/service is down
+C	host/service is critical
+W	host/service is warning
 F	host/service state is flapping
-A	host/service state has been acknowledged
+
 
 
 Implemented XEPs
