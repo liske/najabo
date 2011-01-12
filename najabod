@@ -102,6 +102,7 @@ my %xmpp_conf;
 my %auth_conf;
 my %nagios_conf;
 my %najabo_conf;
+my %najabo_acls;
 eval `cat "$opt_c"`;
 
 # enable log to file
