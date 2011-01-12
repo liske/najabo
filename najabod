@@ -353,12 +353,49 @@ sub ParseStatus {
     }
 }
 
+my %user_cmds = (
+    lh => {
+	preq => qw( ),
+	popt => qw(host),
+	descr => 'list hosts',
+    },
+    hd => {
+	preq => qw(host),
+	popt => qw( ),
+	descr => 'host details',
+    },
+
+    ls => {
+	preq => qw( ),
+	popt => qw(host service),
+	descr => 'list services',
+    },
+    sd => {
+	preq => qw(host service),
+	popt => qw( ),
+	descr => 'service details',
+    },
+);
+
 # we've got a message
 sub InMessage {
-#    my $sid = shift;
-#    my $message = shift;
-#    my $to = $message->GetFrom();
-#
+    my $sid = shift;
+    my $message = shift;
+
+    if($message->GetType() eq 'error') {
+	$logger->info(
+	    'Got error '.$message->GetErrorCode().' from '.
+	    $message->GetFrom().': '.$message->GetError());
+
+	return;
+    }
+
+#    my $reply = $message->Reply();
+
+#    $logger->info($message);
+
+#    if(
+
 #    if ($to =~ /\@/) {
 #        if (my $m = $message->GetBody()) {
 #            my $response = $eliza->transform($m);
