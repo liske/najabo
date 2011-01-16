@@ -377,6 +377,9 @@ my %user_cmds = (
     },
 );
 
+my %admin_cmds = (
+);
+
 # we've got a message
 sub InMessage {
     my $sid = shift;
@@ -390,7 +393,33 @@ sub InMessage {
 	return;
     }
 
-#    my $reply = $message->Reply();
+    my $reply = $message->Reply();
+    my ($cmd, @params) = split(/\s+/, $message->GetBody());
+
+    if(exists($user_cmds{$cmd})) {
+	if (($message->GetFrom() =~ /$najabo_acls{'users'}/) || ($message->GetFrom() =~ /$najabo_acls{'admins'}/)) {
+	    $logger->info("user command: $cmd");
+	}
+	else {
+	    $logger->info("user command denied: $cmd");
+	}
+    }
+    elsif(exists($admin_cmds{$cmd})) {
+	if ($message->GetFrom() =~ /$najabo_acls{'admins'}/) {
+	    $logger->info("admin command: $cmd");
+	}
+	else {
+	    $logger->info("admin command denied: $cmd");
+	}
+    }
+    else {
+	if (($message->GetFrom() =~ /$najabo_acls{'users'}/) || ($message->GetFrom() =~ /$najabo_acls{'admins'}/)) {
+	    $logger->info("command help: $cmd");
+	}
+	else {
+	    $logger->info("command denied: $cmd");
+	}
+    }
 
 #    $logger->info($message);
 
