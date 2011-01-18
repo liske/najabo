@@ -105,6 +105,55 @@ my %najabo_conf;
 my %najabo_acls;
 eval `cat "$opt_c"`;
 
+my %user_cmds = (
+    lh => {
+	preq => [],
+	popt => ['host'],
+	descr => 'list hosts',
+    },
+    hd => {
+	preq => ['host'],
+	popt => [],
+	descr => 'host details',
+    },
+
+    ls => {
+	preq => [],
+	popt => ['host', 'service'],
+	descr => 'list services',
+    },
+    sd => {
+	preq => ['host', 'service'],
+	popt => [],
+	descr => 'service details',
+    },
+
+    lp => {
+	preq => [],
+	popt => ['host', 'service'],
+	descr => 'list problems',
+    }
+    ld => {
+	preq => [],
+	popt => ['host', 'service'],
+	descr => 'list downtimes',
+    },
+);
+
+my %admin_cmds = (
+    ack => {
+	preq => ['"comment"', 'host'],
+	popt => ['service'],
+	descr => 'acknowledge problem',
+    }
+
+    dt => {
+	preq => ['"comment"', 'start', 'duration', 'host'],
+	popt => ['service'],
+	descr => 'schedule downtime',
+    }
+);
+
 # enable log to file
 if(exists($najabo_conf{'logfile'})) {
     $logger->add(
@@ -352,33 +401,6 @@ sub ParseStatus {
 	);
     }
 }
-
-my %user_cmds = (
-    lh => {
-	preq => qw( ),
-	popt => qw(host),
-	descr => 'list hosts',
-    },
-    hd => {
-	preq => qw(host),
-	popt => qw( ),
-	descr => 'host details',
-    },
-
-    ls => {
-	preq => qw( ),
-	popt => qw(host service),
-	descr => 'list services',
-    },
-    sd => {
-	preq => qw(host service),
-	popt => qw( ),
-	descr => 'service details',
-    },
-);
-
-my %admin_cmds = (
-);
 
 # we've got a message
 sub InMessage {
