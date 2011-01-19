@@ -132,7 +132,7 @@ my %user_cmds = (
 	preq => [],
 	popt => ['host', 'service'],
 	descr => 'list problems',
-    }
+    },
     ld => {
 	preq => [],
 	popt => ['host', 'service'],
@@ -145,13 +145,13 @@ my %admin_cmds = (
 	preq => ['"comment"', 'host'],
 	popt => ['service'],
 	descr => 'acknowledge problem',
-    }
+    },
 
     dt => {
 	preq => ['"comment"', 'start', 'duration', 'host'],
 	popt => ['service'],
 	descr => 'schedule downtime',
-    }
+    },
 );
 
 # enable log to file
