@@ -293,7 +293,8 @@ sub SortStates {
         'UNKNOWN' => 4,
         'ACKNOWLEDGED' => 5,
         'SCHEDULED' => 6,
-        'OK' => 7,
+        'DISABLED' => 7,
+        'OK' => 8,
     );
 
     return $a cmp $b unless(exists($o{$a}) && exists($o{$b}));
@@ -326,7 +327,11 @@ sub ParseStatus {
                     my $status = $srv->status;
                     my @flags = GetFlags($srv);
 
-                    if($srv->scheduled_downtime_depth) {
+                    if(!$srv->checks_enabled) {
+                        $status = 'DISABLED';
+                        push(@flags, substr($srv->status, 0, 1));
+                    }
+                    elsif($srv->scheduled_downtime_depth) {
                         $status = 'SCHEDULED';
                         push(@flags, substr($srv->status, 0, 1));
                     }
@@ -347,7 +352,11 @@ sub ParseStatus {
             my $status = $obj->status;
             my @flags = GetFlags($obj);
 
-            if($obj->scheduled_downtime_depth) {
+            if(!$obj->checks_enabled) {
+                $status = 'DISABLED';
+                push(@flags, substr($obj->status, 0, 1));
+            }
+            elsif($obj->scheduled_downtime_depth) {
                 $status = 'SCHEDULED';
                 push(@flags, substr($obj->status, 0, 1));
             }
