@@ -103,56 +103,61 @@ my %auth_conf;
 my %nagios_conf;
 my %najabo_conf;
 my %najabo_acls;
-eval `cat "$opt_c"`;
-
-my %user_cmds = (
+my %najabo_cmds = (
     lh => {
+	role => 'user',
 	preq => [],
 	popt => ['host'],
 	descr => 'list hosts',
     },
     hd => {
+	role => 'user',
 	preq => ['host'],
 	popt => [],
 	descr => 'host details',
     },
 
     ls => {
+	role => 'user',
 	preq => [],
 	popt => ['host', 'service'],
 	descr => 'list services',
     },
     sd => {
+	role => 'user',
 	preq => ['host', 'service'],
 	popt => [],
 	descr => 'service details',
     },
 
     lp => {
+	role => 'user',
 	preq => [],
 	popt => ['host', 'service'],
 	descr => 'list problems',
     },
     ld => {
+	role => 'user',
 	preq => [],
 	popt => ['host', 'service'],
 	descr => 'list downtimes',
     },
-);
 
-my %admin_cmds = (
     ack => {
+	role => 'admin',
 	preq => ['"comment"', 'host'],
 	popt => ['service'],
 	descr => 'acknowledge problem',
     },
 
     dt => {
+	role => 'admin',
 	preq => ['"comment"', 'start', 'duration', 'host'],
 	popt => ['service'],
 	descr => 'schedule downtime',
     },
 );
+eval `cat "$opt_c"`;
 
 # enable log to file
 if(exists($najabo_conf{'logfile'})) {
@@ -427,44 +432,93 @@ sub InMessage {
     my $reply = $message->Reply();
     my ($cmd, @params) = split(/\s+/, $message->GetBody());
 
-    if(exists($user_cmds{$cmd})) {
-	if (($message->GetFrom() =~ /$najabo_acls{'users'}/) || ($message->GetFrom() =~ /$najabo_acls{'admins'}/)) {
-	    $logger->info("user command: $cmd");
-	}
-	else {
-	    $logger->info("user command denied: $cmd");
-	}
+    my @roles = qw(any);
+
+    foreach my $role (keys %najabo_acls) {
+	push(@roles, $role) if($message->GetFrom() =~ /$najabo_acls{$role}/);
     }
-    elsif(exists($admin_cmds{$cmd})) {
-	if ($message->GetFrom() =~ /$najabo_acls{'admins'}/) {
-	    $logger->info("admin command: $cmd");
+
+    my $user = 'JID: '.$message->GetFrom().', roles: '.join(', ', @roles);
+
+    if(exists($najabo_cmds{$cmd})) {
+	if (scalar grep {$_ eq ${$najabo_cmds{$cmd}}{'role'}} @roles) {
+	    if(exists(${$najabo_cmds{$cmd}}{'run'})) {
+		my $body = '';
+		$body = `${$najabo_cmds{$cmd}}{'run'}`
+		    if (-x ${$najabo_cmds{$cmd}}{'run'});
+		chomp($body);
+
+		if($body ne '') {
+		    $logger->info("command ($user): $cmd");
+
+		    $conn->Send($message->Reply(body=> "\n$body\n"));
+		}
+		else {
+		    $logger->notice("command binary failed ($user): $cmd");
+
+		    $conn->Send($message->Reply(
+			body => 'Command failed!',
+			errorcode => 500,
+			error => 'Internal Error',
+			type => 'error',
+		    ));
+		}
+	    }
+	    else {
+		$logger->notice("command not implemented ($user): $cmd");
+
+		$conn->Send($message->Reply(
+		    body => 'Command not implemented!',
+		    errorcode => 500,
+		    error => 'Internal Error',
+		    type => 'error',
+		));
+	    }
 	}
 	else {
-	    $logger->info("admin command denied: $cmd");
+	    $logger->notice("command denied ($user): $cmd");
+
+	    $conn->Send($message->Reply(
+		body => "You don't have the required permission for the '$cmd' command!",
+		errorcode => 403,
+		error => 'Forbidden',
+		type => 'error',
+	    ));
 	}
     }
     else {
-	if (($message->GetFrom() =~ /$najabo_acls{'users'}/) || ($message->GetFrom() =~ /$najabo_acls{'admins'}/)) {
-	    $logger->info("command help: $cmd");
+	my $help;
+
+	$logger->info("command unknown ($user): $cmd");
+
+	foreach my $cmd (sort keys %najabo_cmds) {
+	    next unless(scalar grep {$_ eq ${$najabo_cmds{$cmd}}{'role'}} @roles);
+
+	    $help .= "\n$cmd";
+
+	    $help .= ' <'.join('> <', @{${$najabo_cmds{$cmd}}{'preq'}}).'>'
+		unless($#{${$najabo_cmds{$cmd}}{'preq'}} == -1);
+
+	    $help .= ' ['.join('] [', @{${$najabo_cmds{$cmd}}{'popt'}}).']'
+		unless($#{${$najabo_cmds{$cmd}}{'popt'}} == -1);
+
+	    $help .= "\n\t".${$najabo_cmds{$cmd}}{'descr'}."\n";
+	}
+
+	if($help) {
+	    $conn->Send($message->Reply(
+		body => $help,
+	    ));
 	}
 	else {
-	    $logger->info("command denied: $cmd");
+	    $conn->Send($message->Reply(
+		body => "You don't have the required permission!",
+		errorcode => 403,
+		error => 'Forbidden',
+		type => 'error',
+	    ));
 	}
     }
-
-#    $logger->info($message);
-
-#    if(
-
-#    if ($to =~ /\@/) {
-#        if (my $m = $message->GetBody()) {
-#            my $response = $eliza->transform($m);
-#
-#            sleep 0.5+rand;
-#
-#            $conn->Send($message->Reply(body=>$response));
-#        }
-#    }
 }
 
 # somebody query's an IQ
