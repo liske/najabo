@@ -107,8 +107,9 @@ my %najabo_cmds = (
     lh => {
 	role => 'user',
 	preq => [],
-	popt => ['host'],
+	popt => [],
 	descr => 'list hosts',
+	sub => \&SendListHosts,
     },
     hd => {
 	role => 'user',
@@ -120,8 +121,9 @@ my %najabo_cmds = (
     ls => {
 	role => 'user',
 	preq => [],
-	popt => ['host', 'service'],
+	popt => ['host'],
 	descr => 'list services',
+	sub => \&SendListServices,
     },
     sd => {
 	role => 'user',
@@ -155,6 +157,14 @@ my %najabo_cmds = (
 	preq => ['"comment"', 'start', 'duration', 'host'],
 	popt => ['service'],
 	descr => 'schedule downtime',
+    },
+
+    help => {
+	role => 'user',
+	preq => [],
+	popt => [],
+	descr => 'show command list',
+	sub => \&SendHelp,
     },
 );
 eval `cat "$opt_c"`;
@@ -348,6 +358,7 @@ sub ParseStatus {
                     my $line = $obj->host_name;
                     $line .= "/$service";
                     $line .= ' ['.join('', @flags).']' if($#flags > -1);
+                    $line .= ': '.$srv->plugin_output if($srv->plugin_output && $srv->status ne 'PENDING');
 
                     push(@{$states{$status}}, $line);
                 }
@@ -357,7 +368,7 @@ sub ParseStatus {
             my $status = $obj->status;
             my @flags = GetFlags($obj);
 
-            if(!$obj->checks_enabled && !$srv->active_checks_enabled && !$srv->passive_checks_enabled) {
+            if(!$obj->checks_enabled && !$obj->active_checks_enabled && !$obj->passive_checks_enabled) {
                 $status = 'DISABLED';
                 push(@flags, substr($obj->status, 0, 1));
             }
@@ -372,6 +383,7 @@ sub ParseStatus {
 
             my $line = $obj->host_name;
             $line .= ' ['.join('', @flags).']' if($#flags > -1);
+            $line .= ': '.$obj->plugin_output if($obj->plugin_output && $obj->status ne 'PENDING');
 
             push(@{$states{$status}}, $line);
         }
@@ -413,6 +425,73 @@ sub ParseStatus {
 	    status => $presence_status,
 	    show => $presence_show,
 	);
+    }
+}
+
+sub SendListHosts($@) {
+    my $message = shift;
+    my $params = shift;
+    my $roles = shift;
+
+    $conn->Send($message->Reply(
+	body => "Host list:\n".join("\n", sort $log->list_hosts())."\n",
+    ));
+}
+
+sub SendListServices($@) {
+    my $message = shift;
+    my $params = shift;
+    my $roles = shift;
+
+    my @params = @{$params};
+    @params = $log->list_hosts() if($#params == -1);
+
+    my $l = '';
+    foreach my $h (sort @params) {
+	$l .= "\n$h:\n";
+
+	foreach my $s (sort $log->list_services_on_host($h)) {
+	    $l .= "\t$s\n";
+	}
+    }
+
+    $conn->Send($message->Reply(
+	body => "Service list:\n$l",
+    ));
+}
+
+sub SendHelp($@) {
+    my $message = shift;
+    my $params = shift;
+    my $roles = shift;
+
+    my $help;
+    foreach my $cmd (sort keys %najabo_cmds) {
+	next unless(scalar grep {$_ eq ${$najabo_cmds{$cmd}}{'role'}} @{$roles});
+
+	$help .= "\n".${$najabo_cmds{$cmd}}{'descr'}.":\n\t$cmd";
+
+	$help .= ' <'.join('> <', @{${$najabo_cmds{$cmd}}{'preq'}}).'>'
+	    unless($#{${$najabo_cmds{$cmd}}{'preq'}} == -1);
+
+	$help .= ' ['.join('] [', @{${$najabo_cmds{$cmd}}{'popt'}}).']'
+	    unless($#{${$najabo_cmds{$cmd}}{'popt'}} == -1);
+
+	$help .= "\n";
+    }
+
+    if($help) {
+	$conn->Send($message->Reply(
+	    body => "Command list:\n$help",
+	));
+    }
+    else {
+	$conn->Send($message->Reply(
+	    body => "You don't have the required permission!",
+	    errorcode => 403,
+	    error => 'Forbidden',
+	    type => 'error',
+	));
     }
 }
 
@@ -464,6 +543,9 @@ sub InMessage {
 		    ));
 		}
 	    }
+	    elsif(exists(${$najabo_cmds{$cmd}}{'sub'})) {
+		&{${$najabo_cmds{$cmd}}{'sub'}}($message, \@params, \@roles);
+	    }
 	    else {
 		$logger->notice("command not implemented ($user): $cmd");
 
@@ -487,32 +569,19 @@ sub InMessage {
 	}
     }
     else {
-	my $help;
+	if (exists($najabo_cmds{'help'}) && scalar grep {$_ eq ${$najabo_cmds{'help'}}{'role'}} @roles) {
+	    $logger->info("command unknown ($user): $cmd");
 
-	$logger->info("command unknown ($user): $cmd");
-
-	foreach my $cmd (sort keys %najabo_cmds) {
-	    next unless(scalar grep {$_ eq ${$najabo_cmds{$cmd}}{'role'}} @roles);
-
-	    $help .= "\n$cmd";
-
-	    $help .= ' <'.join('> <', @{${$najabo_cmds{$cmd}}{'preq'}}).'>'
-		unless($#{${$najabo_cmds{$cmd}}{'preq'}} == -1);
-
-	    $help .= ' ['.join('] [', @{${$najabo_cmds{$cmd}}{'popt'}}).']'
-		unless($#{${$najabo_cmds{$cmd}}{'popt'}} == -1);
-
-	    $help .= "\n\t".${$najabo_cmds{$cmd}}{'descr'}."\n";
-	}
-
-	if($help) {
 	    $conn->Send($message->Reply(
-		body => $help,
+		body => "Unknown command '$cmd' - try 'help' to get command list!",
+		errorcode => 404,
+		error => 'Not found',
+		type => 'error',
 	    ));
 	}
 	else {
 	    $conn->Send($message->Reply(
-		body => "You don't have the required permission!",
+		body => "Access denied!",
 		errorcode => 403,
 		error => 'Forbidden',
 		type => 'error',
