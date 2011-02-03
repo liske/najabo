@@ -332,7 +332,7 @@ sub ParseStatus {
                     my $status = $srv->status;
                     my @flags = GetFlags($srv);
 
-                    if(!$srv->checks_enabled) {
+                    if(!$srv->checks_enabled && !$srv->active_checks_enabled && !$srv->passive_checks_enabled) {
                         $status = 'DISABLED';
                         push(@flags, substr($srv->status, 0, 1));
                     }
@@ -357,7 +357,7 @@ sub ParseStatus {
             my $status = $obj->status;
             my @flags = GetFlags($obj);
 
-            if(!$obj->checks_enabled) {
+            if(!$obj->checks_enabled && !$srv->active_checks_enabled && !$srv->passive_checks_enabled) {
                 $status = 'DISABLED';
                 push(@flags, substr($obj->status, 0, 1));
             }
