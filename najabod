@@ -250,10 +250,21 @@ unless($opt_f) {
 my $inotify = new Linux::Inotify2 or mydie "Unable to create new inotify object: $!";
 $inotify->blocking(0);
 
-# add inotify watch
-my $watch = $inotify->watch(dirname($nagios_conf{'Filename'}), IN_MOVED_TO, sub {
+# add inotify watches
+my $watch_status = $inotify->watch(dirname($nagios_conf{'Filename'}), IN_MOVED_TO, sub {
     my $e = shift;
     ParseStatus() if($e->IN_MOVED_TO && ($e->fullname eq $nagios_conf{'Filename'}));
+}) or mydie "Could not setup inotify watch: $!";
+
+my $nagios_running = 1;
+my $watch_pid = $inotify->watch(dirname($nagios_conf{'PIDFilename'}), IN_CREATE | IN_CLOSE_WRITE, sub {
+    my $e = shift;
+    $nagios_running = 1 if($e->IN_CREATE);
+
+    if($e->IN_CLOSE_WRITE) {
+	$nagios_running = 0;
+	ParseStatus();
+    }
 }) or mydie "Could not setup inotify watch: $!";
 
 my $presence_status = 'Initializing...';
@@ -327,7 +338,40 @@ sub GetFlags($) {
 }
 
 sub ParseStatus {
-    $log->update();
+    my $status;
+    my $show;
+
+    unless($nagios_running) {
+	$status = 'Nagios is not running!';
+	$show = 'dnd';
+    }
+    else {
+	eval { $log->update(); };
+	if($@) {
+	    $logger->warning("unable to parse status file: $@");
+
+	    $status = 'Failed to parse nagios status file!';
+	    $show = 'dnd';
+	}
+    }
+
+    # change presence and return if there was an general error
+    if(defined($status)) {
+	if(($presence_status ne $status) ||
+	   ($presence_show ne $show)) {
+
+	    $presence_status = $status;
+	    $presence_show = $show;
+
+
+	    $conn->PresenceSend(
+		status => $presence_status,
+		show => $presence_show,
+	    );
+	}
+
+	return;
+    }
 
     my %states;
     foreach my $host ($log->list_hosts) {
@@ -399,14 +443,14 @@ sub ParseStatus {
         push(@details, $status) unless(scalar grep {/^$status$/i} @{$najabo_conf{'filter_states'}});
     }
 
-    my $status = join(', ', @states);
+    $status = join(', ', @states);
     $status .= "\n" unless($#details == -1);
     foreach my $detail (@details) {
         $status .= "\n$detail:\n ".join("\n ", sort @{$states{$detail}})."\n";
     }
 
     # map nagios status
-    my $show = 'online';
+    $show = 'online';
     if(exists($states{'DOWN'}) || exists($states{'CRITICAL'})) {
         $show = 'xa';
     }
