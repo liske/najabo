@@ -1,3 +1,10 @@
+najabo (0.4) unstable; urgency=low
+
+  * Monitor nagios status.
+  * Don't die if the status log file vanishes.
+
+ -- Thomas Liske <liske@ibh.de>  
+
 najabo (0.3b) unstable; urgency=low
 
   * Rewrite command handling.
