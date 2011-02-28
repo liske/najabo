@@ -1,9 +1,9 @@
-najabo (0.4) unstable; urgency=low
+najabo (0.4) unstable; urgency=medium
 
   * Monitor nagios status.
   * Don't die if the status log file vanishes.
 
- -- Thomas Liske <liske@ibh.de>  
+ -- Thomas Liske <liske@ibh.de>  Mon, 28 Feb 2011 21:41:27 +0100
 
 najabo (0.3b) unstable; urgency=low
 
