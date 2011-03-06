@@ -147,9 +147,10 @@ my %najabo_cmds = (
 
     ack => {
 	role => 'admin',
-	preq => ['"comment"', 'host'],
-	popt => ['service'],
+	preq => ['host[/service]', 'comment'],
+	popt => [],
 	descr => 'acknowledge problem',
+	sub => \&AckProblem,
     },
 
     dt => {
@@ -502,6 +503,153 @@ sub SendListServices($@) {
     $conn->Send($message->Reply(
 	body => "Service list:\n$l",
     ));
+}
+
+sub RunNagiosCmd(@) {
+    my $message = shift;
+    my $replyerror = shift;
+
+    unless(exists($nagios_conf{'CMDPipe'})) {
+	$conn->Send($message->Reply(
+	    body => "Nagios CMD named pipe is not configured.",
+	    errorcode => 503,
+	    error => 'Service Unavailable',
+	    type => 'error',
+	)) if($replyerror);
+
+	return 0;
+    }
+
+    unless(-p $nagios_conf{'CMDPipe'}) {
+	$conn->Send($message->Reply(
+	    body => "Nagios CMD named pipe does not exists or is not a pipe: $nagios_conf{CMDPipe}",
+	    errorcode => 503,
+	    error => 'Service Unavailable',
+	    type => 'error',
+	)) if($replyerror);
+
+	return 0;
+    }
+
+    unless(-w $nagios_conf{'CMDPipe'}) {
+	$conn->Send($message->Reply(
+	    body => "Permission denied writing to CMD named pipe $nagios_conf{CMDPipe}",
+	    errorcode => 500,
+	    error => 'Internal Server Error',
+	    type => 'error',
+	)) if($replyerror);
+
+	return 0;
+    }
+
+    unless(open(HCMD, '>', $nagios_conf{'CMDPipe'})) {
+	$logger->notice("Cannot open CMD named pipe $nagios_conf{CMDPipe}: $!");
+
+	$conn->Send($message->Reply(
+	    body => "Failed opening CMD named pipe $nagios_conf{CMDPipe}: $!",
+	    errorcode => 500,
+	    error => 'Internal Server Error',
+	    type => 'error',
+	)) if($replyerror);
+
+	return 0;
+    }
+
+    print HCMD '['.localtime().'] '.join(';', @_)."\n";
+    close(HCMD);
+
+    return 1;
+}
+
+sub FindHostService($$$) {
+    my $message = shift;
+    my $replyerror = shift;
+    my $hs = shift;
+
+    unless($hs =~ /^([^\/]+)(\/([^\/]+))?$/) {
+	$conn->Send($message->Reply(
+	    body => "Host/service pattern is invalid.",
+	    errorcode => 400,
+	    error => 'Bad Request',
+	    type => 'error',
+	)) if($replyerror);
+
+	return (undef, undef);
+    };
+
+    my $host = $1;
+    my $service = $3;
+
+    my $ohost;
+    eval { $ohost = $log->host($host); };
+    unless(!$@ && defined($ohost)) {
+	$conn->Send($message->Reply(
+	    body => "Unkown host $host.",
+	    errorcode => 404,
+	    error => 'Not Found',
+	    type => 'error',
+	)) if($replyerror);
+
+	return (undef, undef);
+    };
+
+    my $oservice;
+    if(defined($2)) {
+	eval { $oservice = $log->service($host, $service); };
+	unless(!$@ && defined($oservice)) {
+	    $conn->Send($message->Reply(
+		body => "Unkown service $service on host $host.",
+		errorcode => 404,
+		error => 'Not Found',
+		type => 'error',
+	    )) if($replyerror);
+
+	    return (undef, undef);
+	}
+    }
+
+    return ($ohost, $oservice);
+}
+
+sub AckProblem($@) {
+    my $message = shift;
+    my $params = shift;
+    my $roles = shift;
+
+    my $hs = shift(@{$params});
+    my($ohost, $oservice) = FindHostService($message, 1, $hs);
+
+    return unless(defined($ohost));
+
+    my $ret = 0;
+
+    if(!defined($oservice)) {
+	$ret = RunNagiosCmd(
+	$message, 1, 
+	'ACKNOWLEDGE_HOST_PROBLEM',
+	$ohost->host_name,
+	0,
+	1,
+	0,
+	$message->Getfrom(),
+	join(' ', @{$params}));
+    }
+    else {
+	$ret = RunNagiosCmd(
+	$message, 1, 
+	'ACKNOWLEDGE_SVC_PROBLEM',
+	$ohost->host_name,
+	$oservice->service_description,
+	0,
+	1,
+	0,
+	$message->GetFrom(),
+	join(' ', @{$params}));
+    }
+
+    $conn->Send($message->Reply(
+	body => "Your acknowledgement of $hs has been queued.",
+    )) if($ret);
 }
 
 sub SendHelp($@) {
