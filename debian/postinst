@@ -25,6 +25,7 @@ case "$1" in
         adduser --system --ingroup www-data --home /var/run/najabo \
                 --disabled-login --force-badname najabo > /dev/null
       fi
+      adduser najabo nagios || true
       chown najabo:nagios /etc/najabo/*
       chmod 0600 /etc/najabo/najabo.conf
     ;;
