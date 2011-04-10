@@ -107,13 +107,13 @@ my %najabo_cmds = (
     lh => {
 	role => 'user',
 	preq => [],
-	popt => [],
+	popt => ['glob'],
 	descr => 'list hosts',
 	sub => \&SendListHosts,
     },
     hd => {
 	role => 'user',
-	preq => ['host'],
+	preq => ['glob'],
 	popt => [],
 	descr => 'host details',
     },
@@ -121,13 +121,13 @@ my %najabo_cmds = (
     ls => {
 	role => 'user',
 	preq => [],
-	popt => ['host'],
+	popt => ['glob'],
 	descr => 'list services',
 	sub => \&SendListServices,
     },
     sd => {
 	role => 'user',
-	preq => ['host', 'service'],
+	preq => ['glob'],
 	popt => [],
 	descr => 'service details',
     },
@@ -135,19 +135,19 @@ my %najabo_cmds = (
     lp => {
 	role => 'user',
 	preq => [],
-	popt => ['host', 'service'],
+	popt => ['glob'],
 	descr => 'list problems',
     },
     ld => {
 	role => 'user',
 	preq => [],
-	popt => ['host', 'service'],
+	popt => ['glob'],
 	descr => 'list downtimes',
     },
 
     ack => {
 	role => 'admin',
-	preq => ['host[/service]', 'comment'],
+	preq => ['glob', 'comment'],
 	popt => [],
 	descr => 'acknowledge problem',
 	sub => \&AckProblem,
@@ -155,8 +155,8 @@ my %najabo_cmds = (
 
     dt => {
 	role => 'admin',
-	preq => ['"comment"', 'start', 'duration', 'host'],
-	popt => ['service'],
+	preq => ['glob', 'start', 'duration', '"comment"'],
+	popt => [],
 	descr => 'schedule downtime',
     },
 
@@ -471,6 +471,14 @@ sub ParseStatus {
 	    show => $presence_show,
 	);
     }
+}
+
+sub ParseGlob($) {
+    shift;
+
+    return undef unless(m@^[\w-]+(/[\w-]+)$@);
+
+    return ($1, $2);
 }
 
 sub SendListHosts($@) {
