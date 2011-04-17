@@ -107,13 +107,13 @@ my %najabo_cmds = (
     lh => {
 	role => 'user',
 	preq => [],
-	popt => ['glob'],
+	popt => ['host'],
 	descr => 'list hosts',
 	sub => \&SendListHosts,
     },
     hd => {
 	role => 'user',
-	preq => ['glob'],
+	preq => ['host'],
 	popt => [],
 	descr => 'host details',
     },
@@ -121,13 +121,13 @@ my %najabo_cmds = (
     ls => {
 	role => 'user',
 	preq => [],
-	popt => ['glob'],
+	popt => ['host'],
 	descr => 'list services',
 	sub => \&SendListServices,
     },
     sd => {
 	role => 'user',
-	preq => ['glob'],
+	preq => ['host/service'],
 	popt => [],
 	descr => 'service details',
     },
@@ -135,19 +135,19 @@ my %najabo_cmds = (
     lp => {
 	role => 'user',
 	preq => [],
-	popt => ['glob'],
+	popt => ['host[/service]'],
 	descr => 'list problems',
     },
     ld => {
 	role => 'user',
 	preq => [],
-	popt => ['glob'],
+	popt => ['host[/service]'],
 	descr => 'list downtimes',
     },
 
     ack => {
 	role => 'admin',
-	preq => ['glob', 'comment'],
+	preq => ['host[/service]', 'comment'],
 	popt => [],
 	descr => 'acknowledge problem',
 	sub => \&AckProblem,
@@ -155,9 +155,10 @@ my %najabo_cmds = (
 
     dt => {
 	role => 'admin',
-	preq => ['glob', 'start', 'duration', '"comment"'],
+	preq => ['host[/service]', 'start', 'end', 'duration', 'comment'],
 	popt => [],
 	descr => 'schedule downtime',
+	sub => \&ScheduleDT,
     },
 
     help => {
@@ -473,14 +474,6 @@ sub ParseStatus {
     }
 }
 
-sub ParseGlob($) {
-    shift;
-
-    return undef unless(m@^[\w-]+(/[\w-]+)$@);
-
-    return ($1, $2);
-}
-
 sub SendListHosts($@) {
     my $message = shift;
     my $params = shift;
@@ -657,6 +650,56 @@ sub AckProblem($@) {
 
     $conn->Send($message->Reply(
 	body => "Your acknowledgement of $hs has been queued.",
+    )) if($ret);
+}
+
+sub ScheduleDT($@) {
+    my $message = shift;
+    my $params = shift;
+    my $roles = shift;
+
+    my $start = shift(@{$params});
+    my $end = shift(@{$params});
+    my $duration = shift(@{$params});
+
+    my $hs = shift(@{$params});
+    my($ohost, $oservice) = FindHostService($message, 1, $hs);
+
+    return unless(defined($ohost));
+
+    my $ret = 0;
+
+    if(!defined($oservice)) {
+	$ret = RunNagiosCmd(
+	$message, 1, 
+	'SCHEDULE_HOST_SVC_DOWNTIME',
+	$ohost->host_name,
+	$oservice->service_description,
+	$start,
+	$end,
+	0,
+	0,
+	$duration,
+	$message->Getfrom(),
+	join(' ', @{$params}));
+    }
+    else {
+	$ret = RunNagiosCmd(
+	$message, 1, 
+	'SCHEDULE_SVC_DOWNTIME',
+	$ohost->host_name,
+	$oservice->service_description,
+	$start,
+	$end,
+	0,
+	0,
+	$duration,
+	$message->GetFrom(),
+	join(' ', @{$params}));
+    }
+
+    $conn->Send($message->Reply(
+	body => "The downtime of $hs has been queued.",
     )) if($ret);
 }
 
