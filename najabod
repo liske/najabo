@@ -107,7 +107,7 @@ my %najabo_cmds = (
     lh => {
 	role => 'user',
 	preq => [],
-	popt => ['host'],
+	popt => [],
 	descr => 'list hosts',
 	sub => \&SendListHosts,
     },
@@ -489,8 +489,13 @@ sub SendListServices($@) {
     my $params = shift;
     my $roles = shift;
 
-    my @params = @{$params};
-    @params = $log->list_hosts() if($#params == -1);
+    my @params = $log->list_hosts();
+    if($#params > -1) {
+	foreach my $host (@{$params}) {
+	    return unless(FindHost($message, 1, $host));
+	}
+	@params = @{$params};
+    }
 
     my $l = '';
     foreach my $h (sort @params) {
@@ -562,6 +567,27 @@ sub RunNagiosCmd(@) {
     return 1;
 }
 
+sub FindHost($$$) {
+    my $message = shift;
+    my $replyerror = shift;
+    my $host = shift;
+
+    my $ohost;
+    eval { $ohost = $log->host($host); };
+    unless(!$@ && defined($ohost)) {
+	$conn->Send($message->Reply(
+	    body => "Unkown host $host.",
+	    errorcode => 404,
+	    error => 'Not Found',
+	    type => 'error',
+	)) if($replyerror);
+
+	return undef;
+    };
+
+    return $ohost;
+}
+
 sub FindHostService($$$) {
     my $message = shift;
     my $replyerror = shift;
@@ -581,18 +607,8 @@ sub FindHostService($$$) {
     my $host = $1;
     my $service = $3;
 
-    my $ohost;
-    eval { $ohost = $log->host($host); };
-    unless(!$@ && defined($ohost)) {
-	$conn->Send($message->Reply(
-	    body => "Unkown host $host.",
-	    errorcode => 404,
-	    error => 'Not Found',
-	    type => 'error',
-	)) if($replyerror);
-
-	return (undef, undef);
-    };
+    my $ohost = FindHost($message, $replyerror, $host);
+    return unless(defined($ohost));
 
     my $oservice;
     if(defined($2)) {
