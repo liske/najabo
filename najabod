@@ -116,6 +116,7 @@ my %najabo_cmds = (
 	preq => ['host'],
 	popt => [],
 	descr => 'host details',
+	sub => \&SendHostDetails,
     },
 
     ls => {
@@ -130,6 +131,7 @@ my %najabo_cmds = (
 	preq => ['host/service'],
 	popt => [],
 	descr => 'service details',
+	sub => \&SendServiceDetails,
     },
 
     lp => {
@@ -484,6 +486,26 @@ sub SendListHosts($@) {
     ));
 }
 
+sub SendHostDetails($@) {
+    my $message = shift;
+    my $params = shift;
+    my $roles = shift;
+
+    my $host = shift(@{$params});
+    my $ohost = FindHost($message, 1, $host);
+    return unless(defined($ohost));
+
+    my $details = '';
+
+    foreach my $key (sort keys %{$ohost}) {
+	$details .= "\n\t$key: $ohost->{$key}";
+    }
+
+    $conn->Send($message->Reply(
+	body => "Host details:$details\n",
+    ));
+}
+
 sub SendListServices($@) {
     my $message = shift;
     my $params = shift;
@@ -508,6 +530,26 @@ sub SendListServices($@) {
 
     $conn->Send($message->Reply(
 	body => "Service list:\n$l",
+    ));
+}
+
+sub SendServiceDetails($@) {
+    my $message = shift;
+    my $params = shift;
+    my $roles = shift;
+
+    my $hs = shift(@{$params});
+    my ($ohost, $oservice) = FindHostService($message, 1, $hs);
+    return unless(defined($ohost) && defined($oservice));
+
+    my $details = '';
+
+    foreach my $key (sort keys %{$oservice}) {
+	$details .= "\n\t$key: $oservice->{$key}";
+    }
+
+    $conn->Send($message->Reply(
+	body => "Service details:$details\n",
     ));
 }
 
