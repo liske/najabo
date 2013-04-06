@@ -170,6 +170,7 @@ my %najabo_cmds = (
 	descr => 'show command list',
 	sub => \&SendHelp,
     },
+
 );
 eval `cat "$opt_c"`;
 
@@ -492,9 +493,7 @@ sub SendListHosts($@) {
     my $params = shift;
     my $roles = shift;
 
-    $conn->Send($message->Reply(
-	body => "Host list:\n".join("\n", sort $log->list_hosts())."\n",
-    ));
+    $conn->Send($message->Reply( body => "Host list:\n" . join("\n", sort $log->list_hosts()) . "\n",));
 }
 
 sub SendHostDetails($@) {
@@ -628,10 +627,7 @@ sub FindHost($$$) {
     eval { $ohost = $log->host($host); };
     unless(!$@ && defined($ohost)) {
 	$conn->Send($message->Reply(
-	    body => "Unkown host $host.",
-	    errorcode => 404,
-	    error => 'Not Found',
-	    type => 'error',
+	    body => "Unkown host $host."
 	)) if($replyerror);
 
 	return undef;
@@ -646,13 +642,7 @@ sub FindHostService($$$) {
     my $hs = shift;
 
     unless($hs =~ /^([^\/]+)(\/([^\/]+))?$/) {
-	$conn->Send($message->Reply(
-	    body => "Host/service pattern is invalid.",
-	    errorcode => 400,
-	    error => 'Bad Request',
-	    type => 'error',
-	)) if($replyerror);
-
+	$conn->Send($message->Reply( body => "Host/service pattern is invalid.")) if($replyerror);
 	return (undef, undef);
     };
 
@@ -845,13 +835,7 @@ sub InMessage {
 		}
 		else {
 		    $logger->notice("command binary failed ($user): $cmd");
-
-		    $conn->Send($message->Reply(
-			body => 'Command failed!',
-			errorcode => 500,
-			error => 'Internal Error',
-			type => 'error',
-		    ));
+	            $conn->Send($message->Reply(body=> "command binary failed: $cmd"));
 		}
 	    }
 	    elsif(exists(${$najabo_cmds{$cmd}}{'sub'})) {
@@ -859,47 +843,24 @@ sub InMessage {
 	    }
 	    else {
 		$logger->notice("command not implemented ($user): $cmd");
-
-		$conn->Send($message->Reply(
-		    body => 'Command not implemented!',
-		    errorcode => 500,
-		    error => 'Internal Error',
-		    type => 'error',
-		));
+	        $conn->Send($message->Reply(body=> "Command not implemented: $cmd"));
 	    }
 	}
 	else {
 	    $logger->notice("command denied ($user): $cmd");
-
-	    $conn->Send($message->Reply(
-		body => "You don't have the required permission for the '$cmd' command!",
-		errorcode => 403,
-		error => 'Forbidden',
-		type => 'error',
-	    ));
+	    $conn->Send($message->Reply(body=> "You don't have the required permission for the '$cmd' command!"));
 	}
     }
     else {
-         if ($cmd eq '') {
+        if ($cmd eq '') {
             # ignore, this is an empty command (solves a problem anoying reactions, when youre typing an advertise this event)
         }
 	elsif (exists($najabo_cmds{'help'}) && scalar grep {$_ eq ${$najabo_cmds{'help'}}{'role'}} @roles) {
 	    $logger->info("command unknown ($user): $cmd");
-
-	    $conn->Send($message->Reply(
-		body => "Unknown command '$cmd' - try 'help' to get command list!",
-		errorcode => 404,
-		error => 'Not found',
-		type => 'error',
-	    ));
+	    $conn->Send($message->Reply(body=> "Unknown command '$cmd' - try 'help' to get command list!"));
 	}
 	else {
-	    $conn->Send($message->Reply(
-		body => "Access denied!",
-		errorcode => 403,
-		error => 'Forbidden',
-		type => 'error',
-	    ));
+	    $conn->Send($message->Reply(body=> "Access deiend!"));
 	}
     }
 }
