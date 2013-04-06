@@ -101,6 +101,7 @@ $logger->info("config file: '$opt_c'");
 my %xmpp_conf;
 my %auth_conf;
 my %nagios_conf;
+my %alerts_conf;
 my %najabo_conf;
 my %najabo_acls;
 my %najabo_cmds = (
@@ -283,6 +284,11 @@ my $watch_pid = $inotify->watch(dirname($nagios_conf{'PIDFilename'}), IN_CREATE 
     }
 }) or mydie "Could not setup inotify watch: $!";
 
+my $watch_alert = $inotify->watch($alerts_conf{'Directory'}, IN_MODIFY, sub {
+    &SendAlerts;
+}) or mydie "Could not setup inotify watch: $!";
+
+
 my $presence_status = 'Initializing...';
 my $presence_show = 'dnd';
 while(1) {
@@ -324,6 +330,30 @@ while(1) {
 
     $logger->warning('XMPP connection broken, sleeping 30 seconds!');
     sleep(30);
+}
+
+sub SendAlerts {
+
+    opendir(DIR, $alerts_conf{'Directory'});
+    my @files = readdir(DIR);
+    closedir DIR;
+    foreach (@files) {
+       if (! /^\..*/) {
+         my $file = $alerts_conf{'Directory'} . '/' . $_;
+         open(FILE, $file);
+         my $line= <FILE>;
+         chomp($line);
+         (my $receip, my $message) =  $line =~ /^([^ ]*)[[:blank:]](.*)$/;
+         close(FILE);
+
+         $conn->MessageSend(to=>$receip,
+                      subject=>"Icinga alert",
+                      body=>"$message");
+         # TODO: error handling for sending message would be nice ! 
+         unlink $file or $logger->warning("Could not unlink $file: $!");
+       }
+    }
+    
 }
 
 sub SortStates {
