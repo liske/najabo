@@ -539,9 +539,8 @@ sub SendListServices($@) {
 	}
     }
 
-    $conn->Send($message->Reply(
-	body => "Service list:\n$l",
-    ));
+    if ($l ne '') { $conn->Send($message->Reply( body => "$l",)); }
+    else { $conn->Send($message->Reply( body => "no services found (did you set a hostname ?)",)); }
 }
 
 sub SendServiceDetails($@) {
