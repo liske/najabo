@@ -881,7 +881,10 @@ sub InMessage {
 	}
     }
     else {
-	if (exists($najabo_cmds{'help'}) && scalar grep {$_ eq ${$najabo_cmds{'help'}}{'role'}} @roles) {
+         if ($cmd eq '') {
+            # ignore, this is an empty command (solves a problem anoying reactions, when youre typing an advertise this event)
+        }
+	elsif (exists($najabo_cmds{'help'}) && scalar grep {$_ eq ${$najabo_cmds{'help'}}{'role'}} @roles) {
 	    $logger->info("command unknown ($user): $cmd");
 
 	    $conn->Send($message->Reply(
