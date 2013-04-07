@@ -552,7 +552,7 @@ sub SendListServices($@) {
     my $roles = shift;
 
     my @params = $log->list_hosts();
-    if($#params > -1) {
+    if(@{$params} > 0) {
 	foreach my $host (@{$params}) {
 	    return unless(FindHost($message, 1, $host));
 	}
