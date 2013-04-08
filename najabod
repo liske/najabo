@@ -138,8 +138,9 @@ my %najabo_cmds = (
     lp => {
 	role => 'user',
 	preq => [],
-	popt => ['host[/service]'],
+	popt => [],
 	descr => 'list problems',
+	sub => \&SendProblems,
     },
     ld => {
 	role => 'user',
@@ -599,6 +600,35 @@ sub SendServiceDetails($@) {
     $conn->Send($message->Reply(
 	body => "Service details:$details\n",
     ));
+}
+
+sub SendProblems($@) {
+    my $message = shift;
+    my $params = shift;
+    my $roles = shift;
+
+    my @params = $log->list_hosts();
+
+    my $l = '';
+    foreach my $h (sort @params) {
+        my $obj = $log->host($h);
+        my $hl = "\n$h |" . $obj->status . "|:\n";
+        my $sl = '';
+
+        foreach my $s (sort $log->list_services_on_host($h)) {
+            my $sobj=$log->service($h, $s);
+            if ($sobj->status ne 'OK') {
+              my $srv = $log->service($h, $s);
+              $sl .= "\t |" . $sobj->status . "| $s: " . $srv->{'plugin_output'} . "\n";
+            }
+        }
+        if ($sl ne '' || $obj->status ne 'OK' ) { $l .= $hl . $sl }
+        
+    }
+
+    if ($l ne '') { $conn->Send($message->Reply( body => "Problems found:\n $l",)); }
+    else { $conn->Send($message->Reply( body => "No Problems found",)); }
+
 }
 
 sub RunNagiosCmd(@) {
