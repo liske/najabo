@@ -543,11 +543,14 @@ sub SendHostDetails($@) {
     my $details = '';
 
     foreach my $key (sort keys %{$ohost}) {
+      if (not ($key=~/^__/)) {
 	$details .= "\n\t$key: $ohost->{$key}";
+      }
     }
 
+    my $obj = $log->host($host);
     $conn->Send($message->Reply(
-	body => "Host details:$details\n",
+	body => "Host details:\n$host |" . $obj->status . "|:$details\n",
     ));
 }
 
