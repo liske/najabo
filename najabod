@@ -569,7 +569,8 @@ sub SendListServices($@) {
 
     my $l = '';
     foreach my $h (sort @params) {
-	$l .= "\n$h:\n";
+        my $obj = $log->host($h);
+	$l .= "\n$h |" . $obj->status . "|:\n";
 
 	foreach my $s (sort $log->list_services_on_host($h)) {
 	    $l .= "\t$s\n";
