@@ -523,7 +523,12 @@ sub SendListHosts($@) {
     my $params = shift;
     my $roles = shift;
 
-    $conn->Send($message->Reply( body => "Host list:\n" . join("\n", sort $log->list_hosts()) . "\n",));
+    my $l="Host list:\n";
+    foreach my $host ($log->list_hosts) {
+         my $obj = $log->host($host);
+         $l= $l . "\n|" . $obj->status . '| ' . $host;
+    }
+    $conn->Send($message->Reply( body => "$l\n",));
 }
 
 sub SendHostDetails($@) {
