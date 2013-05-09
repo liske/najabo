@@ -260,10 +260,22 @@ my $watch_status = $inotify->watch(dirname($nagios_conf{'Filename'}), IN_MOVED_T
     ParseStatus() if($e->IN_MOVED_TO && ($e->fullname eq $nagios_conf{'Filename'}));
 }) or mydie "Could not setup inotify watch: $!";
 
+# backup watch_status params
+my @watch_status = ($watch_status->{name}, $watch_status->{mask}, $watch_status->{cb});
+
 my $nagios_running = 1;
 my $watch_pid = $inotify->watch(dirname($nagios_conf{'PIDFilename'}), IN_CREATE | IN_CLOSE_WRITE, sub {
     my $e = shift;
-    $nagios_running = 1 if($e->IN_CREATE);
+    if($e->IN_CREATE) {
+	# resetup inotify
+	if(defined($watch_status))
+	    $watch_status->cancel;
+	$watch_status = $inotify->watch(@watch_status);
+
+	$logger->critical("Could not setup inotify watch: $!") unless(defined($watch_status));
+
+	$nagios_running = 1
+    }
 
     if($e->IN_CLOSE_WRITE) {
 	$nagios_running = 0;
