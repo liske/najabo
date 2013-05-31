@@ -1,0 +1,7 @@
+debian/files
+debian/najabo.debhelper.log
+debian/najabo.postinst.debhelper
+debian/najabo.postrm.debhelper
+debian/najabo.prerm.debhelper
+debian/najabo.substvars
+debian/najabo/
