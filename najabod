@@ -321,6 +321,9 @@ while(1) {
     );
     SendVCard(type => 'set');
 
+    # Send waiting Alerts
+    &SendAlerts();
+
     # wait for XMPP messages and nagios status updates
     while(defined($conn->Process(3))) {
 	$inotify->poll;
