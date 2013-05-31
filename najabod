@@ -759,7 +759,7 @@ sub AckProblem($@) {
 	0,
 	1,
 	0,
-	$message->Getfrom(),
+	$message->GetFrom(),
 	join(' ', @{$params}));
     }
     else {
