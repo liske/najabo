@@ -240,6 +240,10 @@ unless($opt_f) {
     $daemonize = undef;
     mydie "Unable to fork daemon: $@" if($@);
 
+    # create rundir if needed
+    my $err;
+    make_path($najabo_conf{'rundir'}, {error => \$err});
+
     # check if we are alone
     eval {
 	die "Daemon is already running or PID file is stale!" if(Proc::PID::File->running(verify => 1, dir => $najabo_conf{'rundir'}));
