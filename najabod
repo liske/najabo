@@ -26,6 +26,7 @@
 
 use Config;
 use File::Basename;
+use File::Path qw(make_path);
 use Getopt::Std;
 use Linux::Inotify2;
 use Log::Dispatch;
