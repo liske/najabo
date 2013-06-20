@@ -26,7 +26,6 @@
 
 use Config;
 use File::Basename;
-use File::Path qw(make_path);
 use Getopt::Std;
 use Linux::Inotify2;
 use Log::Dispatch;
@@ -240,10 +239,6 @@ unless($opt_f) {
     eval { Proc::Daemon::Init() };
     $daemonize = undef;
     mydie "Unable to fork daemon: $@" if($@);
-
-    # create rundir if needed
-    my $err;
-    make_path($najabo_conf{'rundir'}, {error => \$err});
 
     # check if we are alone
     eval {

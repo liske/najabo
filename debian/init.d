@@ -40,6 +40,9 @@ USERNAME=najabo
 #
 do_start()
 {
+	mkdir `dirname "$PIDFILE"` || true
+	chown "$USERNAME" `dirname "$PIDFILE"` || true
+
 	# Return
 	#   0 if daemon has been started
 	#   1 if daemon was already running
