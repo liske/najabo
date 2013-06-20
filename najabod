@@ -273,8 +273,7 @@ my $watch_pid = $inotify->watch(dirname($nagios_conf{'PIDFilename'}), IN_CREATE 
     my $e = shift;
     if($e->IN_CREATE) {
 	# resetup inotify
-	if(defined($watch_status))
-	    $watch_status->cancel;
+	$watch_status->cancel if(defined($watch_status));
 	$watch_status = $inotify->watch(@watch_status);
 
 	$logger->critical("Could not setup inotify watch: $!") unless(defined($watch_status));
