@@ -172,7 +172,6 @@ my %najabo_cmds = (
 	descr => 'show command list',
 	sub => \&SendHelp,
     },
-
 );
 eval `cat "$opt_c"`;
 
