@@ -350,7 +350,7 @@ sub SendAlerts {
          close(FILE);
 
          $conn->MessageSend(to=>$receip,
-                      subject=>"Icinga alert",
+                      subject=>$alerts_conf{'AlertsSubject'},
                       body=>"$message");
          # TODO: error handling for sending message would be nice ! 
          unlink $file or $logger->warning("Could not unlink $file: $!");
