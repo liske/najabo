@@ -284,7 +284,7 @@ my $watch_pid = $inotify->watch(dirname($nagios_conf{'PIDFilename'}), IN_CREATE 
     }
 }) or mydie "Could not setup inotify watch: $!";
 
-my $watch_alert = $inotify->watch($alerts_conf{'Directory'}, IN_MODIFY, sub {
+my $watch_alert = $inotify->watch($alerts_conf{'AlertsDirectory'}, IN_MODIFY, sub {
     &SendAlerts;
 }) or mydie "Could not setup inotify watch: $!";
 
@@ -337,12 +337,12 @@ while(1) {
 
 sub SendAlerts {
 
-    opendir(DIR, $alerts_conf{'Directory'});
+    opendir(DIR, $alerts_conf{'AlertsDirectory'});
     my @files = readdir(DIR);
     closedir DIR;
     foreach (@files) {
        if (! /^\..*/) {
-         my $file = $alerts_conf{'Directory'} . '/' . $_;
+         my $file = $alerts_conf{'AlertsDirectory'} . '/' . $_;
          open(FILE, $file);
          my $line= <FILE>;
          chomp($line);
