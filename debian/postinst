@@ -28,6 +28,8 @@ case "$1" in
       adduser najabo nagios || true
       chown najabo:nagios /etc/najabo/*
       chmod 0600 /etc/najabo/najabo.conf
+      chown najabo:nagios /var/spool/najabo
+      chmod 0770 /var/spool/najabo
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)
