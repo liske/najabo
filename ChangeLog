@@ -1,3 +1,14 @@
+najabo (0.6) unstable; urgency=low
+
+  * add example config for icinga
+  * ignore empty commands
+  * Bugfix: ack for host problem resulted in core dump 
+  * new command lp (list Problem)
+  * new functionality to send alerts via jabber
+  * several changes in output of commands
+
+ -- Benedikt Trefzer <benedikt.trefzer@cirrax.com> Fri, 03 Jan 2014 08:36:22 +0100
+
 najabo (0.5) unstable; urgency=low
 
   * Try to create rundir (required if /var/run is a tmpfs).
