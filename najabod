@@ -499,7 +499,7 @@ sub ParseStatus {
     }
 
     # map nagios status
-    $show = 'chat';
+    $show = 'online';
     if(exists($states{'DOWN'}) || exists($states{'CRITICAL'})) {
         $show = 'xa';
     }
