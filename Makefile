@@ -1,3 +1,6 @@
+
+SPOOLDIR = /var/spool
+
 clean:
 	
 
@@ -12,3 +15,7 @@ install:
 	
 	mkdir -p "$(DESTDIR)/usr/sbin"
 	cp najabod "$(DESTDIR)/usr/sbin/"
+	
+	mkdir -p "$(DESTDIR)$(SPOOLDIR)/najabo"
+	chmod +s "$(DESTDIR)$(SPOOLDIR)/najabo"
+

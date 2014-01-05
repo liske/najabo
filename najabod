@@ -44,7 +44,7 @@ use warnings;
 $0 = 'najabod';
 
 use constant {
-    NAJABOD_VERSION => '0.5',
+    NAJABOD_VERSION => '0.6',
 
     XML_IQ_VERSION =>
 "<query xmlns='jabber:iq:version'>
@@ -101,6 +101,7 @@ $logger->info("config file: '$opt_c'");
 my %xmpp_conf;
 my %auth_conf;
 my %nagios_conf;
+my %alerts_conf;
 my %najabo_conf;
 my %najabo_acls;
 my %najabo_cmds = (
@@ -137,8 +138,9 @@ my %najabo_cmds = (
     lp => {
 	role => 'user',
 	preq => [],
-	popt => ['host[/service]'],
+	popt => [],
 	descr => 'list problems',
+	sub => \&SendProblems,
     },
     ld => {
 	role => 'user',
@@ -282,6 +284,11 @@ my $watch_pid = $inotify->watch(dirname($nagios_conf{'PIDFilename'}), IN_CREATE 
     }
 }) or mydie "Could not setup inotify watch: $!";
 
+my $watch_alert = $inotify->watch($alerts_conf{'AlertsDirectory'}, IN_MODIFY, sub {
+    &SendAlerts;
+}) or mydie "Could not setup inotify watch: $!";
+
+
 my $presence_status = 'Initializing...';
 my $presence_show = 'dnd';
 while(1) {
@@ -313,6 +320,9 @@ while(1) {
     );
     SendVCard(type => 'set');
 
+    # Send waiting Alerts
+    &SendAlerts();
+
     # wait for XMPP messages and nagios status updates
     while(defined($conn->Process(3))) {
 	$inotify->poll;
@@ -323,6 +333,30 @@ while(1) {
 
     $logger->warning('XMPP connection broken, sleeping 30 seconds!');
     sleep(30);
+}
+
+sub SendAlerts {
+
+    opendir(DIR, $alerts_conf{'AlertsDirectory'});
+    my @files = readdir(DIR);
+    closedir DIR;
+    foreach (@files) {
+       if (! /^\..*/) {
+         my $file = $alerts_conf{'AlertsDirectory'} . '/' . $_;
+         open(FILE, $file);
+         my $line= <FILE>;
+         chomp($line);
+         (my $receip, my $message) =  $line =~ /^([^ ]*)[[:blank:]](.*)$/;
+         close(FILE);
+
+         $conn->MessageSend(to=>$receip,
+                      subject=>$alerts_conf{'AlertsSubject'},
+                      body=>"$message");
+         # TODO: error handling for sending message would be nice ! 
+         unlink $file or $logger->warning("Could not unlink $file: $!");
+       }
+    }
+    
 }
 
 sub SortStates {
@@ -465,7 +499,7 @@ sub ParseStatus {
     }
 
     # map nagios status
-    $show = 'online';
+    $show = '';
     if(exists($states{'DOWN'}) || exists($states{'CRITICAL'})) {
         $show = 'xa';
     }
@@ -492,9 +526,12 @@ sub SendListHosts($@) {
     my $params = shift;
     my $roles = shift;
 
-    $conn->Send($message->Reply(
-	body => "Host list:\n".join("\n", sort $log->list_hosts())."\n",
-    ));
+    my $l="Host list:\n";
+    foreach my $host ($log->list_hosts) {
+         my $obj = $log->host($host);
+         $l= $l . "\n|" . $obj->status . '| ' . $host;
+    }
+    $conn->Send($message->Reply( body => "$l\n",));
 }
 
 sub SendHostDetails($@) {
@@ -509,11 +546,14 @@ sub SendHostDetails($@) {
     my $details = '';
 
     foreach my $key (sort keys %{$ohost}) {
+      if (not ($key=~/^__/)) {
 	$details .= "\n\t$key: $ohost->{$key}";
+      }
     }
 
+    my $obj = $log->host($host);
     $conn->Send($message->Reply(
-	body => "Host details:$details\n",
+	body => "Host details:\n$host |" . $obj->status . "|:$details\n",
     ));
 }
 
@@ -523,7 +563,7 @@ sub SendListServices($@) {
     my $roles = shift;
 
     my @params = $log->list_hosts();
-    if($#params > -1) {
+    if(@{$params} > 0) {
 	foreach my $host (@{$params}) {
 	    return unless(FindHost($message, 1, $host));
 	}
@@ -532,16 +572,16 @@ sub SendListServices($@) {
 
     my $l = '';
     foreach my $h (sort @params) {
-	$l .= "\n$h:\n";
+        my $obj = $log->host($h);
+	$l .= "\n$h |" . $obj->status . "|:\n";
 
 	foreach my $s (sort $log->list_services_on_host($h)) {
 	    $l .= "\t$s\n";
 	}
     }
 
-    $conn->Send($message->Reply(
-	body => "Service list:\n$l",
-    ));
+    if ($l ne '') { $conn->Send($message->Reply( body => "$l",)); }
+    else { $conn->Send($message->Reply( body => "no services found (did you set a hostname ?)",)); }
 }
 
 sub SendServiceDetails($@) {
@@ -562,6 +602,35 @@ sub SendServiceDetails($@) {
     $conn->Send($message->Reply(
 	body => "Service details:$details\n",
     ));
+}
+
+sub SendProblems($@) {
+    my $message = shift;
+    my $params = shift;
+    my $roles = shift;
+
+    my @params = $log->list_hosts();
+
+    my $l = '';
+    foreach my $h (sort @params) {
+        my $obj = $log->host($h);
+        my $hl = "\n$h |" . $obj->status . "|:\n";
+        my $sl = '';
+
+        foreach my $s (sort $log->list_services_on_host($h)) {
+            my $sobj=$log->service($h, $s);
+            if ($sobj->status ne 'OK') {
+              my $srv = $log->service($h, $s);
+              $sl .= "\t |" . $sobj->status . "| $s: " . $srv->{'plugin_output'} . "\n";
+            }
+        }
+        if ($sl ne '' || $obj->status ne 'OK' ) { $l .= $hl . $sl }
+        
+    }
+
+    if ($l ne '') { $conn->Send($message->Reply( body => "Problems found:\n $l",)); }
+    else { $conn->Send($message->Reply( body => "No Problems found",)); }
+
 }
 
 sub RunNagiosCmd(@) {
@@ -629,10 +698,7 @@ sub FindHost($$$) {
     eval { $ohost = $log->host($host); };
     unless(!$@ && defined($ohost)) {
 	$conn->Send($message->Reply(
-	    body => "Unkown host $host.",
-	    errorcode => 404,
-	    error => 'Not Found',
-	    type => 'error',
+	    body => "Unkown host $host."
 	)) if($replyerror);
 
 	return undef;
@@ -647,13 +713,7 @@ sub FindHostService($$$) {
     my $hs = shift;
 
     unless($hs =~ /^([^\/]+)(\/([^\/]+))?$/) {
-	$conn->Send($message->Reply(
-	    body => "Host/service pattern is invalid.",
-	    errorcode => 400,
-	    error => 'Bad Request',
-	    type => 'error',
-	)) if($replyerror);
-
+	$conn->Send($message->Reply( body => "Host/service pattern is invalid.")) if($replyerror);
 	return (undef, undef);
     };
 
@@ -701,7 +761,7 @@ sub AckProblem($@) {
 	0,
 	1,
 	0,
-	$message->Getfrom(),
+	$message->GetFrom(),
 	join(' ', @{$params}));
     }
     else {
@@ -846,13 +906,7 @@ sub InMessage {
 		}
 		else {
 		    $logger->notice("command binary failed ($user): $cmd");
-
-		    $conn->Send($message->Reply(
-			body => 'Command failed!',
-			errorcode => 500,
-			error => 'Internal Error',
-			type => 'error',
-		    ));
+	            $conn->Send($message->Reply(body=> "command binary failed: $cmd"));
 		}
 	    }
 	    elsif(exists(${$najabo_cmds{$cmd}}{'sub'})) {
@@ -860,44 +914,24 @@ sub InMessage {
 	    }
 	    else {
 		$logger->notice("command not implemented ($user): $cmd");
-
-		$conn->Send($message->Reply(
-		    body => 'Command not implemented!',
-		    errorcode => 500,
-		    error => 'Internal Error',
-		    type => 'error',
-		));
+	        $conn->Send($message->Reply(body=> "Command not implemented: $cmd"));
 	    }
 	}
 	else {
 	    $logger->notice("command denied ($user): $cmd");
-
-	    $conn->Send($message->Reply(
-		body => "You don't have the required permission for the '$cmd' command!",
-		errorcode => 403,
-		error => 'Forbidden',
-		type => 'error',
-	    ));
+	    $conn->Send($message->Reply(body=> "You don't have the required permission for the '$cmd' command!"));
 	}
     }
     else {
-	if (exists($najabo_cmds{'help'}) && scalar grep {$_ eq ${$najabo_cmds{'help'}}{'role'}} @roles) {
+        if ($cmd eq '') {
+            # ignore, this is an empty command (solves a problem anoying reactions, when youre typing an advertise this event)
+        }
+	elsif (exists($najabo_cmds{'help'}) && scalar grep {$_ eq ${$najabo_cmds{'help'}}{'role'}} @roles) {
 	    $logger->info("command unknown ($user): $cmd");
-
-	    $conn->Send($message->Reply(
-		body => "Unknown command '$cmd' - try 'help' to get command list!",
-		errorcode => 404,
-		error => 'Not found',
-		type => 'error',
-	    ));
+	    $conn->Send($message->Reply(body=> "Unknown command '$cmd' - try 'help' to get command list!"));
 	}
 	else {
-	    $conn->Send($message->Reply(
-		body => "Access denied!",
-		errorcode => 403,
-		error => 'Forbidden',
-		type => 'error',
-	    ));
+	    $conn->Send($message->Reply(body=> "Access deiend!"));
 	}
     }
 }
