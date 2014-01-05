@@ -1,6 +1,9 @@
 najabod
 =======
 
+About
+-----
+
 najabod is a Nagios Jabber Bot. najabod connects to a XMPP server as a
 XMPP client. It reads the nagios status log and shows an overview of the
 current states of the monitored nodes. Further version will allow you
@@ -14,7 +17,7 @@ support like ejabberd.
 
 
 Status flags
-============
+------------
 
 - `D` - host/service is down
 - `C` - host/service is critical
@@ -23,7 +26,7 @@ Status flags
 
 
 Interactive commands
-====================
+--------------------
 
 User commands:
 
@@ -56,7 +59,7 @@ Admin commands:
 
 
 Implemented XEPs
-================
+----------------
 
 najabod has the following XEPs implemented:
 
@@ -69,7 +72,7 @@ najabod has the following XEPs implemented:
 
 
 SRV lookup support in Net::XMPP
-===============================
+-------------------------------
 
 Net::XMPP did not support SRV records to get the XMPP server of the
 users JID. XMPP requires the client to lookup the server by SRV records
