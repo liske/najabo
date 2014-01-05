@@ -16,10 +16,10 @@ support like ejabberd.
 Status flags
 ============
 
-D	host/service is down
-C	host/service is critical
-W	host/service is warning
-F	host/service state is flapping
+- `D` - host/service is down
+- `C` - host/service is critical
+- `W` - host/service is warning
+- `F` - host/service state is flapping
 
 
 Interactive commands
@@ -27,17 +27,32 @@ Interactive commands
 
 User commands:
 
- lh [host]
+- `lh [host]`
     list hosts
 
- hd <host>
+- `hd <host>`
     host details
 
- ls [host] [service]
+- `ls [host] [service]`
     list services
 
- sd <host> <service>
+- `sd <host> <service>`
     service details
+
+- `lp`
+    list problems
+
+- `help`
+    show command list
+
+
+Admin commands:
+
+- `ack <host[/service]> <comment>`
+    acknowledge problem
+
+- `dt <host[/service]> <start> <end> <duration> <comment>`
+    schedule downtime
 
 
 Implemented XEPs
@@ -60,15 +75,17 @@ Net::XMPP did not support SRV records to get the XMPP server of the
 users JID. XMPP requires the client to lookup the server by SRV records
 in the DNS. See also the following bug reports including a fix:
 
-    http://rt.cpan.org/Public/Bug/Display.html?id=18539#txn-249050
-    http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=325658
+- http://rt.cpan.org/Public/Bug/Display.html?id=18539#txn-249050
+- http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=325658
 
 To get SRV lookup work, you must have at least
 
-    Net::XMPP >= 1.02_02
-    XML::Stream >= 1.23_04
+- Net::XMPP >= 1.02_02
+- XML::Stream >= 1.23_04
 
 installed and enable the following lines in your najabo.conf:
 
-    $xmpp_conf{'componentname'} = $xmpp_conf{'hostname'};
-    $xmpp_conf{'srv'} = 1;
+```perl
+$xmpp_conf{'componentname'} = $xmpp_conf{'hostname'};
+$xmpp_conf{'srv'} = 1;
+```
