@@ -1,5 +1,10 @@
 najabo (0.6) unstable; urgency=low
 
+  * Try to create rundir (required if /var/run is a tmpfs).
+  * Make example ACL regex more secure.
+  * Convert README into markdown syntax.
+
+  Benedikt Trefzer <benedikt.trefzer@cirrax.com>:
   * add example config for icinga
   * ignore empty commands
   * Bugfix: ack for host problem resulted in core dump 
@@ -7,13 +12,7 @@ najabo (0.6) unstable; urgency=low
   * new functionality to send alerts via jabber
   * several changes in output of commands
 
- -- Benedikt Trefzer <benedikt.trefzer@cirrax.com> Fri, 03 Jan 2014 08:36:22 +0100
-
-najabo (0.5) unstable; urgency=low
-
-  * Try to create rundir (required if /var/run is a tmpfs).
-
- -- Thomas Liske <liske@ibh.de>  
+ -- Thomas Liske <liske@ibh.de>  Sun, 05 Jan 2014 17:26:39 +0100
 
 najabo (0.4) unstable; urgency=medium
 
