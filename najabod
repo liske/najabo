@@ -260,7 +260,7 @@ $inotify->blocking(0);
 my $watch_status = $inotify->watch(dirname($nagios_conf{'Filename'}), IN_MOVED_TO, sub {
     my $e = shift;
     ParseStatus() if($e->IN_MOVED_TO && ($e->fullname eq $nagios_conf{'Filename'}));
-}) or mydie "Could not setup inotify watch: $!";
+}) or mydie "Could not setup inotify watch '$nagios_conf{Filename}'): $!";
 
 # backup watch_status params
 my @watch_status = ($watch_status->{name}, $watch_status->{mask}, $watch_status->{cb});
@@ -282,11 +282,11 @@ my $watch_pid = $inotify->watch(dirname($nagios_conf{'PIDFilename'}), IN_CREATE 
 	$nagios_running = 0;
 	ParseStatus();
     }
-}) or mydie "Could not setup inotify watch: $!";
+}) or mydie "Could not setup inotify watch '$nagios_conf{PIDFilename}': $!";
 
 my $watch_alert = $inotify->watch($alerts_conf{'AlertsDirectory'}, IN_MODIFY, sub {
     &SendAlerts;
-}) or mydie "Could not setup inotify watch: $!";
+}) or mydie "Could not setup inotify watch '$alerts_conf{AlertsDirectory}': $!";
 
 
 my $presence_status = 'Initializing...';
