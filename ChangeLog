@@ -1,3 +1,10 @@
+najabo (0.6.1) unstable; urgency=low
+
+  * Make alert config stuff optional.
+  * Improve some error handling stuff.
+
+ -- Thomas Liske <liske@ibh.de>  
+
 najabo (0.6) unstable; urgency=low
 
   * Try to create rundir (required if /var/run is a tmpfs).
