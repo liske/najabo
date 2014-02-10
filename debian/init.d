@@ -40,7 +40,7 @@ USERNAME=najabo
 #
 do_start()
 {
-	mkdir `dirname "$PIDFILE"` || true
+	mkdir `dirname "$PIDFILE"` 2> /dev/null || true
 	chown "$USERNAME" `dirname "$PIDFILE"` || true
 
 	# Return
