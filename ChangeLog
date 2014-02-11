@@ -1,9 +1,10 @@
 najabo (0.6.1) unstable; urgency=low
 
-  * Make alert config stuff optional.
-  * Improve some error handling stuff.
+  * Bugfix Release:
+    + Make alert config stuff optional.
+    + Improve error handling stuff.
 
- -- Thomas Liske <liske@ibh.de>  
+ -- Thomas Liske <liske@ibh.de>  Wed, 12 Feb 2014 00:02:50 +0100
 
 najabo (0.6) unstable; urgency=low
 
