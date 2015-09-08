@@ -1,3 +1,11 @@
+najabo (0.6.2) unstable; urgency=low
+
+  * Don't depend on nagios3 but add Recommend for one
+    of the well known nagios derivates.
+  * Add najabo system-group.
+
+ -- Thomas Liske <liske@ibh.de>  Tue, 08 Sep 2015 17:10:57 +0200
+
 najabo (0.6.1) unstable; urgency=low
 
   * Bugfix Release:

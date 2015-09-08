@@ -9,7 +9,7 @@ Vcs-Git: git://github.com/liske/najabo.git
 
 Package: najabo
 Architecture: all
-Pre-Depends: nagios3 | nagios | icinga
+Recommends: omd-1.30 | omd-1.20 | check-mk-server | nagios3 | nagios | icinga
 Depends: libnet-xmpp-perl, liblinux-inotify2-perl, liblog-dispatch-perl, libproc-daemon-perl, libproc-pid-file-perl, libnagios-object-perl
 Recommends: libnet-dns-perl
 Description: Nagios Jabber Bot
