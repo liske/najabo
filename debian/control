@@ -9,9 +9,8 @@ Vcs-Git: git://github.com/liske/najabo.git
 
 Package: najabo
 Architecture: all
-Recommends: omd-1.30 | omd-1.20 | check-mk-server | nagios3 | nagios | icinga
+Recommends: omd-1.30 | omd-1.20 | check-mk-server | nagios3 | nagios | icinga, libnet-dns-perl
 Depends: libnet-xmpp-perl, liblinux-inotify2-perl, liblog-dispatch-perl, libproc-daemon-perl, libproc-pid-file-perl, libnagios-object-perl
-Recommends: libnet-dns-perl
 Description: Nagios Jabber Bot
  najabo formats and exports the nagios status log as a XMPP client. It
  is possible to watch the most recent nagios status as XMPP presence
