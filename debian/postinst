@@ -22,13 +22,16 @@ case "$1" in
     configure)
       if ! getent passwd najabo > /dev/null ; then
         echo 'Adding system-user for najabo' 1>&2
-        adduser --system --ingroup www-data --home /var/run/najabo \
+        adduser --system --group --home /var/run/najabo \
                 --disabled-login --force-badname najabo > /dev/null
       fi
-      adduser najabo nagios || true
-      chown najabo:nagios /etc/najabo/*
+      if ! getent group najabo > /dev/null ; then
+        echo 'Adding system-group for najabo' 1>&2
+        addgroup --system --force-badname najabo > /dev/null
+      fi
+      chown najabo:najabo /etc/najabo/*
       chmod 0600 /etc/najabo/najabo.conf
-      chown najabo:nagios /var/spool/najabo
+      chown najabo:najabo /var/spool/najabo
       chmod 0770 /var/spool/najabo
     ;;
 
