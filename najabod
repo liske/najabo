@@ -6,7 +6,7 @@
 #   Thomas Liske <thomas@fiasko-nw.net>
 #
 # Copyright Holder:
-#   2011 - 2014 (C) Thomas Liske <thomas@fiasko-nw.net>
+#   2011 - 2016 (C) Thomas Liske <thomas@fiasko-nw.net>
 #
 # License:
 #   This program is free software; you can redistribute it and/or modify
@@ -224,6 +224,24 @@ sub SendVCard(%) {
     }
 
     $conn->Send($iq);
+}
+
+sub fork_exec {
+    my $pid = open(HPIPE, '-|');
+    defined($pid) || return "ERROR: Can't fork: $!\n";
+
+    if($pid == 0) {
+	close(STDIN);
+	*STDERR = *STDOUT;
+
+	exec(@_) || print "ERROR: Can't exec: $!\n";
+	exit;
+    }
+
+    my $ret = join('', <HPIPE>);
+    close(HPIPE);
+
+    return $ret;
 }
 
 
@@ -896,9 +914,7 @@ sub InMessage {
     if(exists($najabo_cmds{$cmd})) {
 	if (scalar grep {$_ eq ${$najabo_cmds{$cmd}}{'role'}} @roles) {
 	    if(exists(${$najabo_cmds{$cmd}}{'run'})) {
-		my $body = '';
-		$body = `${$najabo_cmds{$cmd}}{'run'}`
-		    if (-x ${$najabo_cmds{$cmd}}{'run'});
+		my $body = fork_exec(${$najabo_cmds{$cmd}}{'run'}, @params)
 		chomp($body);
 
 		if($body ne '') {
