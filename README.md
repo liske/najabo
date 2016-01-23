@@ -63,12 +63,12 @@ Implemented XEPs
 
 najabod has the following XEPs implemented:
 
- XEP-0012: Last Activity
- XEP-0030: Service Discovery
- XEP-0054: vcard-temp
- XEP-0092: Software Version
- XEP-0199: XMPP Ping
- XEP-0202: Entity Time
+- XEP-0012: Last Activity
+- XEP-0030: Service Discovery
+- XEP-0054: vcard-temp
+- XEP-0092: Software Version
+- XEP-0199: XMPP Ping
+- XEP-0202: Entity Time
 
 
 SRV lookup support in Net::XMPP
