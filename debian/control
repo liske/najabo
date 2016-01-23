@@ -17,4 +17,4 @@ Description: Nagios Jabber Bot
  data.
  .
  najabo should work with any nagios version, although it is only tested
- with nagios versions avaible in Debian (etch 'til squeeze).
+ with nagios versions avaible in Debian (etch 'til jessie).

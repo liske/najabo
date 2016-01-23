@@ -44,7 +44,7 @@ use warnings;
 $0 = 'najabod';
 
 use constant {
-    NAJABOD_VERSION => '0.6.1',
+    NAJABOD_VERSION => '0.6.3',
 
     XML_IQ_VERSION =>
 "<query xmlns='jabber:iq:version'>
@@ -173,7 +173,12 @@ my %najabo_cmds = (
 	sub => \&SendHelp,
     },
 );
+
 eval `cat "$opt_c"`;
+if($@) {
+    $logger->critical("$opt_c: $@") if($@);
+    exit(1);
+}
 
 # enable log to file
 if(exists($najabo_conf{'logfile'})) {

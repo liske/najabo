@@ -1,3 +1,13 @@
+najabo (0.6.3) unstable; urgency=low
+
+  * Bugfixes:
+    + Fix cmd config examples.
+    + Pass command parameters to external commands.
+    + Fix nagios restart detection.
+  * Improve reporting of configuration file syntax errors.
+
+ -- Thomas Liske <liske@ibh.de>  Sat, 23 Jan 2016 12:40:54 +0100
+
 najabo (0.6.2) unstable; urgency=low
 
   * Don't depend on nagios3 but add Recommend for one
@@ -23,7 +33,7 @@ najabo (0.6) unstable; urgency=low
   Benedikt Trefzer <benedikt.trefzer@cirrax.com>:
   * add example config for icinga
   * ignore empty commands
-  * Bugfix: ack for host problem resulted in core dump 
+  * Bugfix: ack for host problem resulted in core dump
   * new command lp (list Problem)
   * new functionality to send alerts via jabber
   * several changes in output of commands
