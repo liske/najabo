@@ -293,12 +293,12 @@ my $watch_pid = $inotify->watch(dirname($nagios_conf{'PIDFilename'}), IN_CREATE 
 
 	$logger->critical("Could not setup inotify watch: $!") unless(defined($watch_status));
 
-	$nagios_running = 1
-    }
-
-    if($e->IN_CLOSE_WRITE) {
-	$nagios_running = 0;
+	$nagios_running = 2;
 	ParseStatus();
+    }
+    elsif($e->IN_CLOSE_WRITE) {
+	$nagios_running-- if($nagios_running);
+	ParseStatus() unless($nagios_running);
     }
 }) or mydie "Could not setup inotify watch '$nagios_conf{PIDFilename}': $!";
 
@@ -412,6 +412,10 @@ sub ParseStatus {
 
     unless($nagios_running) {
 	$status = 'Nagios is not running!';
+	$show = 'dnd';
+    }
+    elsif($nagios_running == 2) {
+	$status = 'Nagios is initializing...';
 	$show = 'dnd';
     }
     else {
