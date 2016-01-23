@@ -175,10 +175,7 @@ my %najabo_cmds = (
 );
 
 eval `cat "$opt_c"`;
-if($@) {
-    $logger->critical("$opt_c: $@") if($@);
-    exit(1);
-}
+mydie("$opt_c: $@") if($@);
 
 # enable log to file
 if(exists($najabo_conf{'logfile'})) {
