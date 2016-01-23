@@ -918,7 +918,7 @@ sub InMessage {
     if(exists($najabo_cmds{$cmd})) {
 	if (scalar grep {$_ eq ${$najabo_cmds{$cmd}}{'role'}} @roles) {
 	    if(exists(${$najabo_cmds{$cmd}}{'run'})) {
-		my $body = fork_exec(${$najabo_cmds{$cmd}}{'run'}, @params)
+		my $body = fork_exec(${$najabo_cmds{$cmd}}{'run'}, @params);
 		chomp($body);
 
 		if($body ne '') {
