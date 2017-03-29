@@ -3,7 +3,7 @@ Section: net
 Priority: extra
 Maintainer: Thomas Liske <thomas@fiasko-nw.net>
 Build-Depends: debhelper (>= 7.0.50~)
-Standards-Version: 3.8.4
+Standards-Version: 3.9.6
 Homepage: https://github.com/liske/najabo
 Vcs-Git: git://github.com/liske/najabo.git
 
