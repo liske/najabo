@@ -1,0 +1,17 @@
+[Unit]
+Description=This daemon formats and exports the nagios status log as a XMPP client.
+Documentation=https://github.com/liske/najabo
+After=network.service icinga.service nagios.service
+
+[Service]
+Type=forking
+User=najabo
+Group=nagios
+RuntimeDirectory=najabo
+#RuntimeDirectoryMode=$some-mode
+ExecStart=/usr/sbin/najabod
+Restart=on-failure
+PIDFile=/var/run/najabo/najabod.pid
+
+[Install]
+WantedBy=multi-user.target
