@@ -1,3 +1,12 @@
+najabo (0.6.4) unstable; urgency=low
+
+  * Features:
+    - add docker image (Dockerfile)
+  * Bugfixes:
+    - add ssl_ca_path option for Debian Stretch
+
+ -- Thomas Liske <liske@ibh.de>  
+
 najabo (0.6.3) unstable; urgency=low
 
   * Bugfixes:
