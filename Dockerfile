@@ -1,6 +1,6 @@
 FROM alpine:3.7 AS wget
 
-ARG urldeb=https://github.com/liske/najabo/releases/download/v0.6.3/najabo_0.6.3_all.deb
+ARG urldeb=https://github.com/liske/najabo/releases/download/v0.6.4/najabo_0.6.4_all.deb
 
 WORKDIR /
 
