@@ -18,7 +18,7 @@ ADD entrypoint.sh /
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
     libnet-dns-perl libnet-xmpp-perl liblinux-inotify2-perl liblog-dispatch-perl \
-    libproc-daemon-perl libproc-pid-file-perl libnagios-object-perl && \
+    libproc-daemon-perl libproc-pid-file-perl libnagios-object-perl ca-certificates && \
     dpkg -i /tmp/najabo.deb
 
 ENTRYPOINT ["/entrypoint.sh"]

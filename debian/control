@@ -9,7 +9,7 @@ Vcs-Git: git://github.com/liske/najabo.git
 
 Package: najabo
 Architecture: all
-Recommends: omd-1.30 | omd-1.20 | check-mk-server | nagios3 | nagios | icinga, libnet-dns-perl
+Recommends: check-mk-server | nagios3 | nagios | icinga, libnet-dns-perl, ca-certificates
 Depends: ${misc:Depends},
          libnet-xmpp-perl,
          liblinux-inotify2-perl,
@@ -24,4 +24,5 @@ Description: Nagios Jabber Bot
  data.
  .
  najabo should work with any nagios version, although it is only tested
- with nagios versions avaible in Debian (etch 'til jessie).
+ with nagios versions avaible in Debian (etch 'til jessie) and with
+ Check_MK up to 1.2.8.
