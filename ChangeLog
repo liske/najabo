@@ -5,7 +5,7 @@ najabo (0.6.4) unstable; urgency=low
   * Bugfixes:
     - add ssl_ca_path option for Debian Stretch
 
- -- Thomas Liske <liske@ibh.de>  
+ -- Thomas Liske <liske@ibh.de>  Wed, 03 Jan 2018 23:44:51 +0100
 
 najabo (0.6.3) unstable; urgency=low
 
